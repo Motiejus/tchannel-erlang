@@ -1,0 +1,16 @@
+{application, tchannel,
+ [{description, "TChannel-erlang"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { tchannel_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, []},
+  {links, []}
+ ]}.
