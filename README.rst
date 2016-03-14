@@ -38,7 +38,7 @@ See tchannel:option/0 for more options::
 
 Establishes the TCP connection and initializes tchannel state::
 
-  {ok, Channel} = tchannel:connect("172.16.0.1:3001", <<"hello">>, Options),
+  {ok, Channel} = tchannel:connect("127.0.0.1:3001", <<"sender">>, Options),
 
 Constructing headers for ``tchannel:send/3``. See tchannel spec for details::
 
@@ -51,34 +51,30 @@ Constructing headers for ``tchannel:send/3``. See tchannel spec for details::
              {sk, undefined}     % optional
              {rd, undefined}],   % optional
 
-Constructing a sub-channel::
+Getting a sub-channel::
 
-  {ok, SubChannel} = tchannel:create_sub(Channel, <<"echo_service">>),
+  {ok, SubChannel} = tchannel:create_sub(Channel, <<"destination_service">>),
+
+Subscribing for messages from the subchannel::
+
+  {ok, Ref} = tchannel:subscribe(SubChannel, self()),
 
 Contstructing outgoing message::
 
-  MsgOpts = [{ttl, 1000},
-             {tracing, undefined}, % not supported
-             {headers, Headers}],
+  MsgOpts = [{msg_id, 1234},        % required
+             {headers, Headers},    % required, see above
+             {ttl, 1000},           % optional
+             {tracing, undefined}], % not supported
 
 Sending the actual message::
 
-  {ok, Msg} = tchannel:send(SubChannel, <<"ping">>, MsgOpts),
+  {ok, Msg} = tchannel:send(SubChannel, Arg1, Arg2, Arg3, MsgOpts),
 
-Wait for the response (``init_res``) to that message::
+Wait for the reply::
 
-  {ok, Reply} = tchannel:recv(Msg).
-  Headers = tchannel_resp:headers(Reply),
-  Code = tchannel_resp:code(Reply),
-  {Arg1, Arg2, Arg3} = tchannel_resp:payload(Reply).
-
-Bluntly receiving from the socket::
-  case tchannel:recv(SubChannel, Timeout) of
-    {ok, Reply} ->
+  receive
+    {Ref, {Id, Code, Tracing, Headers, Arg1, Arg2, Arg3}} ->
         ...
-    {error, Error} ->
-        ...
-    end.
 
 Architecture
 ------------
