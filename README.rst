@@ -51,13 +51,10 @@ Constructing headers for ``tchannel:send/3``. See tchannel spec for details::
              {sk, undefined}     % optional
              {rd, undefined}],   % optional
 
-Getting a sub-channel::
+Getting a sub-channel and subscribing to the messages (I acknowledge the API
+isn't very idiomatic, and will likely change here)::
 
   {ok, SubChannel} = tchannel:create_sub(Channel, <<"destination_service">>),
-
-Subscribing for messages from the subchannel::
-
-  {ok, Ref} = tchannel:subscribe(SubChannel, self()),
 
 Contstructing outgoing message::
 
@@ -73,13 +70,16 @@ Sending the actual message::
 Wait for the reply::
 
   receive
-    {Ref, {Id, Code, Tracing, Headers, Arg1, Arg2, Arg3}} ->
-        ...
+    {tchannel, SubChannel, {Id, Code, Tracing, Headers, Arg1, Arg2, Arg3}} ->
+        react_data(Arg1, Arg2, Arg3);
+    {tchannel_closed, SubChannel} ->
+        react_closed(SubChannel)
+  end.
 
 Architecture
 ------------
 
-I expect to make this true in a short-term::
+I expect to make this true in short-term::
 
     1 tchannel_sup (app supervisor)
         1 tchannel_conn_sup (supervisor)
@@ -98,10 +98,9 @@ is to implement as less as possible without overthinking. It is better to make
 big changes when the codebase is small and limited, rather than big and
 complete. With a good introduction, we lack:
 
-1. Receiving a request without sending a message.
-2. Node and Go have sub-channels. In node/go, a sub-channel can have multiple
-   peers. Do we need subchannels at all?
-3. Initial version will definitely not implement >64K requests and responses.
-4. In Erlang, a TChannel instance maps 1:1 to the underlying TCP connection. It
+1. The API for creating a channel, listening for it, terminating it is strange.
+   It will very likely be changed in the future.
+2. Initial version will definitely not implement >64K requests and responses.
+3. In Erlang, a TChannel instance maps 1:1 to the underlying TCP connection. It
    is not true in Go/Node APIs, but is not mandated by the protocol. We'll know
    if we need to do that after actually using it for some time.
