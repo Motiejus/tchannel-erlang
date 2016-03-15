@@ -58,7 +58,7 @@ isn't very idiomatic, and will likely change here)::
 
 Contstructing outgoing message::
 
-  MsgOpts = [{msg_id, 1234},        % required
+  MsgOpts = [{packet_id, 1234},        % required
              {headers, Headers},    % required, see above
              {ttl, 1000},           % optional
              {tracing, undefined}], % not supported

@@ -7,7 +7,7 @@
 
 -record(state, {
           sock :: gen_tcp:socket(),
-          options :: [option()],
+          options :: [connect_option()],
           headers :: [{binary(), binary()}],
           version :: pos_integer()  % tchannel version reported by remote
 }).
@@ -32,7 +32,7 @@
 -spec start_link({Address, Port, Options}) -> {ok, Pid} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
-      Options :: [option()],
+      Options :: [connect_option()],
       Pid :: pid().
 start_link(Args) ->
     gen_server:start_link(?MODULE, [Args], []).
@@ -41,12 +41,14 @@ start_link(Args) ->
     {ok, State} | {stop, {error, Reason}} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
-      Options :: [option()],
+      Options :: [connect_option()],
       State :: state(),
       Reason :: error_reason().
-init(Args) ->
-    init_1(Args).
+init({Address, Port, Options}) ->
+    init_1(Address, Port, Options).
 
+handle_call(headers, _From, State=#state{headers=Headers}) ->
+    {reply, Headers, State};
 handle_call(Request, From, State) ->
     lager:warning("Unknown call from ~p: ~p", [From, Request]),
     {reply, {error, invalid_request}, State}.
@@ -59,8 +61,9 @@ handle_info(Info, State) ->
     lager:warning("Unknown info: ~p", [Info]),
     {noreply, State}.
 
-terminate(Reason, _State) ->
-    lager:debug("Terminating ~p because of ~p", [self(), Reason]).
+terminate(Reason, #state{sock=Sock}) ->
+    lager:debug("Terminating ~p because of ~p", [self(), Reason]),
+    gen_tcp:close(Sock).
 
 code_change(_Old, State, _Extra) ->
     {ok, State}.
@@ -68,7 +71,7 @@ code_change(_Old, State, _Extra) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
-init_1({Address, Port, Options}) ->
+init_1(Address, Port, Options) ->
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
     case gen_tcp:connect(Address, Port, [binary, {active, false}], Timeout) of
         {ok, Sock} ->

@@ -1,68 +1,97 @@
 -module(tchannel).
 
+-include("consts.hrl").
 -include("types.hrl").
--export_type([option/0]).
+
+%% Opaques of this module
+-opaque tchannel() :: pid().
+-export_type([tchannel/0]).
+-opaque subchannel() :: {TChannel :: tchannel(), ServiceName :: binary()}.
+-export_type([subchannel/0]).
+
+%% Public data types
+-export_type([connect_option/0]).
 -export_type([error_reason/0]).
 -export_type([packet_id/0]).
 -export_type([packet_type_no/0]).
 
--include("consts.hrl").
-
-%% API
+%% Public API
+-export([close/1]).
 -export([connect/2]).
 -export([connect/3]).
+-export([create_sub/2]).
 -export([headers/1]).
--export([header/2]).
--export([close/1]).
+-export([send/5]).
 
+%% @doc Connect to a tchannel endpoint with default options.
+-spec connect(Address, Port) -> {ok, Channel} | {error, Reason} when
+      Address :: inet:ip_address() | inet:hostname(),
+      Port :: inet:port_number(),
+      Channel :: tchannel(),
+      Reason :: error_reason().
 connect(Address, Port) ->
     connect(Address, Port, []).
 
 %% @doc Connect to a tchannel endpoint.
 %%
-%% There are two kinds of time outs in the Options:
+%% There are two kinds of timeouts in the Options:
 %% * tcp_connect_timeout :: time limit to establish TCP session.
 %% * init_timeout :: time limit to do a phase per init. Actual init time
-%%   will be a few of times longer. TODO: use this value properly.
--spec connect(Address, Port, Options) -> {ok, State} | {error, Reason} when
+%%   will be a few of times longer.
+%% TODO: respect this value.
+-spec connect(Address, Port, Options) -> {ok, Channel} | {error, Reason} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
-      Options :: [option()],
-      State :: state(),
+      Options :: [connect_option()],
+      Channel :: tchannel(),
       Reason :: error_reason().
 connect(Address, Port, Options) ->
-    case check_options(Options) of
-        ok ->
-            Args = {Address, Port, merge_options(Options)},
-            ChildSpecs = [{tchannel_conn, {tchannel_conn, start_link, [Args]},
-                           temporary, 5000, worker, [tchannel_conn]}],
-            supervisor:start_child(tchannel_conn_sup, ChildSpecs);
-        Error ->
-            Error
-    end.
+    connect_1(Address, Port, Options).
 
--spec headers(State) -> [{HeaderKey, HeaderVal}] when
-      State :: state(),
+-spec send(SubChannel, Arg1, Arg2, Arg3, MsgOpts) -> ok when
+      SubChannel :: subchannel(),
+      Arg1 :: term(),
+      Arg2 :: term(),
+      Arg3 :: term(),
+      MsgOpts :: [msg_option()].
+send(_SubChannel, _Arg1, _Arg2, _Arg3, _MsgOpts) ->
+    ok.
+
+-spec create_sub(TChannel, ServiceName) -> {ok, SubChannel} when
+      TChannel :: tchannel(),
+      ServiceName :: binary(),
+      SubChannel :: subchannel().
+create_sub(TChannel, ServiceName) ->
+    {TChannel, ServiceName}.
+
+%% @doc List of headers returned by remote party on 'init res'.
+-spec headers(TChannel) -> [{HeaderKey, HeaderVal}] when
+      TChannel :: tchannel(),
       HeaderKey :: binary(),
       HeaderVal :: binary().
-headers(#state{headers=Headers}) ->
-    Headers.
+headers(TChannel) ->
+    gen_server:call(TChannel, headers).
 
--spec header(State, HeaderKey) -> HeaderVal when
-      State :: state(),
-      HeaderKey :: binary(),
-      HeaderVal :: undefined | binary().
-header(#state{headers=Headers}, HeaderKey) ->
-    proplists:get_value(HeaderKey, Headers).
-
--spec close(State) -> ok when
-      State :: state().
-close(#state{sock=Socket}) ->
-    gen_tcp:close(Socket).
+%% @doc Close the TChannel by killing the underlying child.
+%%
+%% Will terminate the TCP socket.
+-spec close(TChannel) -> ok when
+      TChannel :: tchannel().
+close(TChannel) ->
+    supervisor:terminate_child(tchannel_conn_sup, TChannel).
 
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+connect_1(Address, Port, Options) ->
+    case check_options(Options) of
+        ok ->
+            Args = {Address, Port, merge_options(Options)},
+            supervisor:start_child(tchannel_conn_sup, [Args]);
+        Error ->
+            Error
+    end.
+
 check_options([]) ->
     ok;
 check_options([{tcp_connect_timeout, T}|Options]) when is_integer(T) ->
@@ -70,10 +99,10 @@ check_options([{tcp_connect_timeout, T}|Options]) when is_integer(T) ->
 check_options([{init_timeout, T}|Options]) when is_integer(T) ->
     check_options(Options);
 check_options([Opt|_]) ->
-    {error, {options, Opt}}.
+    {error, {option, Opt}}.
 
 %% @doc Merges user-defined and default options
--spec merge_options([option()]) -> [option()].
+-spec merge_options([connect_option()]) -> [connect_option()].
 merge_options(Options) ->
     F = fun(K, Default) -> {K, proplists:get_value(K, Options, Default)} end,
     [
