@@ -17,7 +17,8 @@ TODO
 Things to do before any kind of announcement of this experiment:
 
 * Documentation generator.
-* Elvis.
+* Travis-ci.
+* Coveralls.
 
 TChannel
 ========

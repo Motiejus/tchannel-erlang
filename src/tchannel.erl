@@ -46,7 +46,7 @@ connect(Address, Port) ->
       Channel :: tchannel(),
       Reason :: error_reason().
 connect(Address, Port, Options) ->
-    connect_1(Address, Port, Options).
+    connect1(Address, Port, Options).
 
 -spec send(SubChannel, Arg1, Arg2, Arg3, MsgOpts) -> ok when
       SubChannel :: subchannel(),
@@ -83,7 +83,7 @@ close(TChannel) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
-connect_1(Address, Port, Options) ->
+connect1(Address, Port, Options) ->
     case check_options(Options) of
         ok ->
             Args = {Address, Port, merge_options(Options)},

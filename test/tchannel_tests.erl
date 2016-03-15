@@ -7,7 +7,7 @@
       Port :: port(),
       HostPort :: string().
 setup() ->
-    application:ensure_all_started(ringpoprop),
+    {ok, Apps} = application:ensure_all_started(tchannel),
     {ok, Dir} = file:get_cwd(),
     Python = filename:join([Dir, "_build", "venv", "bin", "python"]),
     Server = filename:join([Dir, "test", "tchannel_echo.py"]),
@@ -17,13 +17,13 @@ setup() ->
         {Port, {data, Data}} ->
             string:strip(Data, both, $\n)
     end,
-    {Port, HostPort}.
+    {Apps, {Port, HostPort}}.
 
 basic_exported_test_() ->
     {setup,
      fun setup/0,
-     fun(_) -> ok end,  % echo server stops when stdin closes
-     fun(Setup) ->
+     fun({Apps, _}) -> [application:stop(App) || App <- Apps] end,
+     fun({_, Setup}) ->
              [
               ?_test(server_started(Setup))
              ]
@@ -33,5 +33,6 @@ basic_exported_test_() ->
 server_started({_, HostPort}) ->
     [Host, Port] = string:tokens(HostPort, ":"),
     {ok, T} = tchannel:connect(Host, list_to_integer(Port)),
-    ?assertEqual(<<"python">>, tchannel:header(T, <<"tchannel_language">>)),
+    H = tchannel:headers(T),
+    ?assertEqual(<<"python">>, proplists:get_value(<<"tchannel_language">>, H)),
     tchannel:close(T).

@@ -44,15 +44,15 @@
 start_link(Args) ->
     gen_server:start_link(?MODULE, [Args], []).
 
--spec init({Address, Port, Options}) ->
+-spec init([{Address, Port, Options}]) ->
     {ok, State} | {stop, {error, Reason}} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
       Options :: [connect_option()],
       State :: state(),
       Reason :: error_reason().
-init({Address, Port, Options}) ->
-    init_1(Address, Port, Options).
+init([{Address, Port, Options}]) ->
+    init1(Address, Port, Options).
 
 handle_call(headers, _From, State=#state{headers=Headers}) ->
     {reply, Headers, State};
@@ -78,7 +78,7 @@ code_change(_Old, State, _Extra) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
-init_1(Address, Port, Options) ->
+init1(Address, Port, Options) ->
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
     case gen_tcp:connect(Address, Port, [binary, {active, false}], Timeout) of
         {ok, Sock} ->
@@ -108,12 +108,12 @@ init_req(#state{sock=Sock}=State) ->
 init_res(#state{sock=Sock, options=Options}=State) ->
     case recv_packet(Sock, proplists:get_value(init_timeout, Options)) of
         {ok, {init_res, Id, Payload}} ->
-            init_res_1(State, Id, Payload);
+            init_res1(State, Id, Payload);
         {error, Reason} ->
             {error, Reason}
     end.
 
-init_res_1(State, _Id, Payload) ->
+init_res1(State, _Id, Payload) ->
     <<Version:16, NH:16, Rest/binary>> = Payload,
     %lager:info("size(Rest): ~p, Rest: ~p", [size(Rest), Rest]),
     Headers = parse_headers(Rest, NH),

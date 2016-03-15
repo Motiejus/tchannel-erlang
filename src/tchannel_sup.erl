@@ -7,31 +7,13 @@
 
 -behaviour(supervisor).
 
-%% API
 -export([start_link/0]).
-
-%% Supervisor callbacks
 -export([init/1]).
 
--define(SERVER, ?MODULE).
-
-%%====================================================================
-%% API functions
-%%====================================================================
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
 start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-%%====================================================================
-%% Supervisor callbacks
-%%====================================================================
-
-%% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    Procs = [{tchannel_conn_sup, {tchannel_conn_sup, start_link, []},
-              permanent, 5000, supervisor, [tchannel_conn_sup]}],
-    {ok, {{one_for_one, 1, 5}, Procs}}.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
+    {ok, {{one_for_one, 1, 5}, [?CHILD(tchannel_conn_sup, supervisor)]}}.

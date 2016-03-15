@@ -1,4 +1,4 @@
-all: compile dialyzer test
+all: compile lint dialyzer test cover
 
 compile:
 	rebar3 compile
@@ -9,6 +9,12 @@ dialyzer:
 test:
 	rebar3 eunit
 
+cover:
+	rebar3 cover -v
+
+lint:
+	rebar3 as lint lint
+
 clean:
 	rebar3 clean
 	rm -fr _build/venv
@@ -18,4 +24,4 @@ setup:
 	virtualenv _build/venv
 	_build/venv/bin/pip install tchannel
 
-.PHONY: all compile dialyzer test setup
+.PHONY: all compile dialyzer lint test setup cover
