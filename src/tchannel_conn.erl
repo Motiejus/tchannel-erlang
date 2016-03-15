@@ -1,3 +1,10 @@
+%%% @doc This gen_server holds the tcp socket, sends and receives data.
+%%%
+%%% The gen_server holds a list of subscribers attached. Every packet received
+%%% through the socket needs to have a subscriber, otherwise it gets dropped.
+%%% We might add support for a 'catch-all' subscriber later, but now it's not
+%%% needed.
+
 -module(tchannel_conn).
 
 -behavior(gen_server).
