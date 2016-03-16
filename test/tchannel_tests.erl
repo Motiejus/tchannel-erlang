@@ -9,7 +9,8 @@ tchannel_test_() ->
      fun(Apps) ->
              [
               fun connect_timeout/0,
-              fun connect_fail/0
+              fun connect_fail/0,
+              fun init_req_tcp_fail/0
              ] ++
              [
               integration_(Apps)
@@ -26,14 +27,31 @@ connect_timeout() ->
 connect_fail() ->
     ?assertEqual({error, econnrefused}, tchannel:connect("0.0.0.0", 1)).
 
+init_req_tcp_fail() ->
+    Self = self(),
+    spawn(fun() -> gen_tcp_server(Self) end),
+    Port = receive
+        {port, Port1} -> Port1
+    end,
+    ?assertEqual({error, bac}, tchannel:connect("127.0.0.1", Port)).
+
+%% @doc Creates a TCP socket, waits for a connection, and closes the socket.
+%%
+%% Sends Caller {port, inet:port()}.
+gen_tcp_server(Caller) ->
+    {ok, LSock} = gen_tcp:listen(0, [{ip, {127,0,0,1}}]),
+    Caller ! {port, inet:port(LSock)},
+    {ok, _} = gen_tcp:accept(LSock),
+    gen_tcp:close(LSock).
+
 %% @doc Integration test with tchannel_test.py
 integration_(Apps) ->
     {setup,
      fun start_tchannel_echo/0,
      fun(_) -> ok end,
-     fun({_, Setup}) ->
+     fun({Port, HostPort}) ->
              [
-              ?_test(test_connect(Setup))
+              ?_test(test_connect(HostPort))
              ]
      end
     }.
