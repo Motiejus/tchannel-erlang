@@ -2,35 +2,53 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+tchannel_test_() ->
+    {setup,
+     fun() -> {ok, A} = application:ensure_all_started(tchannel), A end,
+     fun(Apps) -> [application:stop(App) || App <- Apps] end,
+     fun(Apps) ->
+             [
+              fun connect_timeout/0
+             ] ++
+             [
+              integration_(Apps)
+             ]
+     end
+    }.
+
+
+%% @doc Connect to 192.0.2.0/24 (RFC 5737). Should timeout.
+connect_timeout() ->
+    ?assertEqual({error, connect_timeout}, tchannel:connect("192.0.2.1", 2000)).
+
+%% @doc Integration test with tchannel_test.py
+integration_(Apps) ->
+    {setup,
+     fun start_tchannel_echo/0,
+     fun(_) -> ok end,
+     fun({_, Setup}) ->
+             [
+              ?_test(test_connect(Setup))
+             ]
+     end
+    }.
+
 %% @doc Starts tchannel json echo service. Tells where it's listening on.
--spec setup() -> {Port, HostPort} when
+-spec start_tchannel_echo() -> {Port, HostPort} when
       Port :: port(),
       HostPort :: string().
-setup() ->
-    {ok, Apps} = application:ensure_all_started(tchannel),
+start_tchannel_echo() ->
     {ok, Dir} = file:get_cwd(),
     Python = filename:join([Dir, "_build", "venv", "bin", "python"]),
     Server = filename:join([Dir, "test", "tchannel_echo.py"]),
-
     Port = open_port({spawn_executable, Python}, [{args, [Server]}]),
     HostPort = receive
         {Port, {data, Data}} ->
             string:strip(Data, both, $\n)
     end,
-    {Apps, {Port, HostPort}}.
+    {Port, HostPort}.
 
-basic_exported_test_() ->
-    {setup,
-     fun setup/0,
-     fun({Apps, _}) -> [application:stop(App) || App <- Apps] end,
-     fun({_, Setup}) ->
-             [
-              ?_test(server_started(Setup))
-             ]
-     end
-    }.
-
-server_started({_, HostPort}) ->
+test_connect(HostPort) ->
     [Host, Port] = string:tokens(HostPort, ":"),
     {ok, T} = tchannel:connect(Host, list_to_integer(Port)),
     H = tchannel:headers(T),

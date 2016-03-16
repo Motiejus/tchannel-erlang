@@ -36,16 +36,17 @@
 %% gen_server API
 %%==============================================================================
 
--spec start_link({Address, Port, Options}) -> {ok, Pid} when
+-spec start_link({Address, Port, Options}) ->
+    {ok, Pid} | {stop, {error, Error}} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
       Options :: [connect_option()],
-      Pid :: pid().
+      Pid :: pid(),
+      Error :: error_reason().
 start_link(Args) ->
     gen_server:start_link(?MODULE, [Args], []).
 
--spec init([{Address, Port, Options}]) ->
-    {ok, State} | {stop, {error, Reason}} when
+-spec init([{Address, Port, Options}]) -> {ok, State} | {stop, Reason} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
       Options :: [connect_option()],
@@ -87,12 +88,12 @@ init1(Address, Port, Options) ->
             State = #state{sock=Sock, options=Options},
             init_req(State);
         {error, timeout} ->
-            {error, connect_timeout};
+            {stop, connect_timeout};
         {error, Reason} ->
-            {error, Reason}
+            {stop, Reason}
     end.
 
--spec init_req(State) -> {ok, State} | {error, Reason} when
+-spec init_req(State) -> {ok, State} | {stop, Reason} when
       State :: state(),
       Reason:: error_reason().
 init_req(#state{sock=Sock}=State) ->
@@ -101,10 +102,10 @@ init_req(#state{sock=Sock}=State) ->
         ok ->
             init_res(State);
         {error, Reason} ->
-            {error, Reason}
+            {stop, Reason}
     end.
 
--spec init_res(State) -> {ok, State} | {error, Reason} when
+-spec init_res(State) -> {ok, State} | {stop, Reason} when
       State :: state(),
       Reason:: error_reason().
 init_res(#state{sock=Sock, options=Options}=State) ->
@@ -112,7 +113,7 @@ init_res(#state{sock=Sock, options=Options}=State) ->
         {ok, {init_res, Id, Payload}} ->
             init_res1(State, Id, Payload);
         {error, Reason} ->
-            {error, Reason}
+            {stop, Reason}
     end.
 
 init_res1(State, _Id, Payload) ->
