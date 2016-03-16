@@ -60,6 +60,8 @@ handle_call(Request, From, State) ->
     lager:warning("Unknown call from ~p: ~p", [From, Request]),
     {reply, {error, invalid_request}, State}.
 
+%handle_cast({call_req, Service, Args, MsgOpts}, State) ->
+%    call_req(State, Service, Args, MsgOpts);
 handle_cast(Request, State) ->
     lager:warning("Unknown cast: ~p", [Request]),
     {noreply, State}.
@@ -119,6 +121,17 @@ init_res1(State, _Id, Payload) ->
     Headers = parse_headers(Rest, NH),
     State2 = State#state{version=Version, headers=Headers},
     {ok, State2}.
+
+
+%-spec call_req(State, Service, Args, MsgOpts) -> ok when
+%      State :: state(),
+%      Service :: binary(),
+%      Args :: {term(), term(), term()},
+%      MsgOpts :: [msg_option()].
+%call_req(State, Service, Args, MsgOptions) ->
+%    PacketId = proplists:get_value(packet_id, MsgOptions),
+%    Payload = Args,
+%    construct_packet(call_req, PacketId, Payload).
 
 -spec parse_headers(Binary, NH) -> [{Key, Value}] when
       Binary :: binary(),

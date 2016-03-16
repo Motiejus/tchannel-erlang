@@ -59,14 +59,14 @@ isn't very idiomatic, and will likely change here)::
 
 Contstructing outgoing message::
 
-  MsgOpts = [{packet_id, 1234},        % required
+  MsgOpts = [{packet_id, 1234},     % required
              {headers, Headers},    % required, see above
              {ttl, 1000},           % optional
              {tracing, undefined}], % not supported
 
 Sending the actual message::
 
-  {ok, Msg} = tchannel:send(SubChannel, Arg1, Arg2, Arg3, MsgOpts),
+  tchannel:send(SubChannel, Arg1, Arg2, Arg3, MsgOpts),
 
 Wait for the reply::
 

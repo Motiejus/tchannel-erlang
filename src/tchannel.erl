@@ -54,8 +54,8 @@ connect(Address, Port, Options) ->
       Arg2 :: term(),
       Arg3 :: term(),
       MsgOpts :: [msg_option()].
-send(_SubChannel, _Arg1, _Arg2, _Arg3, _MsgOpts) ->
-    ok.
+send({TChannel, Service}, Arg1, Arg2, Arg3, MsgOpts) ->
+    gen_server:cast(TChannel, {call_req, Service, {Arg1, Arg2, Arg3}, MsgOpts}).
 
 -spec create_sub(TChannel, ServiceName) -> {ok, SubChannel} when
       TChannel :: tchannel(),
@@ -109,4 +109,3 @@ merge_options(Options) ->
      F(tcp_connect_timeout, ?DEFAULT_TCP_CONNECT_TIMEOUT),
      F(init_timeout, ?DEFAULT_INIT_TIMEOUT)
     ].
-
