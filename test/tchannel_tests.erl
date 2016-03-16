@@ -8,7 +8,8 @@ tchannel_test_() ->
      fun(Apps) -> [application:stop(App) || App <- Apps] end,
      fun(Apps) ->
              [
-              fun connect_timeout/0
+              fun connect_timeout/0,
+              fun connect_fail/0
              ] ++
              [
               integration_(Apps)
@@ -20,6 +21,10 @@ tchannel_test_() ->
 %% @doc Connect to 192.0.2.0/24 (RFC 5737). Should timeout.
 connect_timeout() ->
     ?assertEqual({error, connect_timeout}, tchannel:connect("192.0.2.1", 2000)).
+
+%% @doc Connect to 0.0.0.0:1. We assume nothing is listening...
+connect_fail() ->
+    ?assertEqual({error, econnrefused}, tchannel:connect("0.0.0.0", 1)).
 
 %% @doc Integration test with tchannel_test.py
 integration_(Apps) ->
