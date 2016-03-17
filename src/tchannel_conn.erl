@@ -9,17 +9,16 @@
 
 -behavior(gen_server).
 
--include("types.hrl").
--include("consts.hrl").
-
 -record(state, {
           sock :: gen_tcp:socket(),
           options :: [connect_option()],
           headers :: [{binary(), binary()}],
           version :: pos_integer()  % tchannel version reported by remote
 }).
--opaque state() :: #state{}.
--export_type([state/0]).
+-type state() :: #state{}.
+
+-include("types.hrl").
+-include("consts.hrl").
 
 %% gen_server callbacks
 -export([init/1]).

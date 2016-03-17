@@ -1,0 +1,15 @@
+language: erlang
+otp_release:
+    - 18.2.1
+    - 17.5
+addons:
+  apt:
+    packages:
+    - python-virtualenv
+
+cache:
+  directories:
+    - _build/test
+
+before_script: make setup
+script: make
