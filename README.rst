@@ -105,5 +105,3 @@ complete. With a good introduction, we lack:
 3. In Erlang, a TChannel instance maps 1:1 to the underlying TCP connection. It
    is not true in Go/Node APIs, but is not mandated by the protocol. We'll know
    if we need to do that after actually using it for some time.
-4. Test for ``{error, connect_timeout}`` requires a routing table. Offline
-   machine will fail it.

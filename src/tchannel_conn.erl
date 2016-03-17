@@ -239,14 +239,14 @@ type_num(init_req) ->                16#01.
 %type_num(error) ->                  16#ff.
 
 -spec type_name(packet_type_no()) -> packet_type().
-type_name(16#01) -> init_req;
-type_name(16#02) -> init_res;
-type_name(16#03) -> call_req;
-type_name(16#04) -> call_res;
-type_name(16#13) -> call_req_continue;
-type_name(16#14) -> call_res_continue;
-type_name(16#c0) -> cancel;
-type_name(16#c1) -> claim;
-type_name(16#d0) -> ping_req;
-type_name(16#d1) -> ping_res;
-type_name(16#ff) -> error.
+%type_name(16#01) -> init_req;
+type_name(16#02) -> init_res.
+%type_name(16#03) -> call_req;
+%type_name(16#04) -> call_res;
+%type_name(16#13) -> call_req_continue;
+%type_name(16#14) -> call_res_continue;
+%type_name(16#c0) -> cancel;
+%type_name(16#c1) -> claim;
+%type_name(16#d0) -> ping_req;
+%type_name(16#d1) -> ping_res;
+%type_name(16#ff) -> error.

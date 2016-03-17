@@ -8,11 +8,12 @@ tchannel_test_() ->
      fun(Apps) -> [application:stop(App) || App <- Apps] end,
      fun(Apps) ->
              [
-              fun connect_timeout/0,
-              fun connect_fail/0,
-              fun init_req_tcp_fail/0,
-              fun first_send_fail/0,
-              fun init_res_after_first_packet_fail/0,
+              {"tcp connect timeout", fun connect_timeout/0},
+              {"tcp connection failure", fun connect_fail/0},
+              {"failure in 'init req'", fun init_req_tcp_fail/0},
+              {"failure to send first packet", fun first_send_fail/0},
+              {"'init res' fail after first packet",
+               fun init_res_after_first_packet_fail/0},
               integration_(Apps)
              ]
      end
@@ -21,7 +22,9 @@ tchannel_test_() ->
 
 %% @doc Connect to 192.0.2.0/24 (RFC 5737). Should timeout.
 connect_timeout() ->
-    ?assertEqual({error, connect_timeout}, tchannel:connect("192.0.2.1", 1)).
+    Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_timeout}]}],
+    Host = "192.0.2.1",
+    ?assertEqual({error, connect_timeout}, tchannel:connect(Host, 1, Opts)).
 
 %% @doc Connect to 0.0.0.0:1. We assume nothing is listening...
 connect_fail() ->
@@ -49,7 +52,7 @@ integration_(_) ->
      fun start_tchannel_echo/0,
      fun({_Port, HostPort}) ->
              [
-              ?_test(test_connect(HostPort))
+              {"test connection", ?_test(test_connect(HostPort))}
              ]
      end
     }.

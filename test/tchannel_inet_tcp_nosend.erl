@@ -34,7 +34,7 @@ connect(Address, Port, Opts, Timeout) when is_integer(Timeout),
 
 do_connect({A,B,C,D}, Port, Opts, Time) when ?ip(A,B,C,D), ?port(Port) ->
     case inet:connect_options(Opts, inet) of
-        {error, Reason} -> exit(Reason);
+        %{error, Reason} -> exit(Reason);
         {ok, #connect_opts{fd=Fd,
                            ifaddr=BAddr={Ab,Bb,Cb,Db},
                            port=BPort,
@@ -43,10 +43,10 @@ do_connect({A,B,C,D}, Port, Opts, Time) when ?ip(A,B,C,D), ?port(Port) ->
             case inet:open(Fd,BAddr,BPort,SockOpts,tcp,inet,stream,?MODULE) of
                 {ok, S} ->
                     case prim_inet:connect(S, {A,B,C,D}, Port, Time) of
-                        ok    -> {ok,S};
-                        Error ->  prim_inet:close(S), Error
-                    end;
-                Error -> Error
-            end;
-        {ok, _} -> exit(badarg)
+                        ok    -> {ok,S}
+                        %Error ->  prim_inet:close(S), Error
+                    end
+                %Error -> Error
+            end
+        %{ok, _} -> exit(badarg)
     end.
