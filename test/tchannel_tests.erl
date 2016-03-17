@@ -2,11 +2,29 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-define(conn(Opt), (tchannel:connect("127.0.0.1", 1, [Opt]))).
+
+api_test_() ->
+    [
+     ?_assertEqual(
+        {error, {option, {tcp_connect_timeout, x}}},
+        ?conn({tcp_connect_timeout, x})
+       ),
+     ?_assertEqual(
+        {error, {option, {init_timeout, x}}},
+        ?conn({init_timeout, x})
+       ),
+     ?_assertEqual(
+        {error, {option, {tcp_options, x}}},
+        ?conn({tcp_options, x})
+       )
+    ].
+
 tchannel_test_() ->
     {setup,
      fun() -> {ok, A} = application:ensure_all_started(tchannel), A end,
      fun(Apps) -> [application:stop(App) || App <- Apps] end,
-     fun(Apps) ->
+     fun(_) ->
              [
               ?_assertEqual({ok, x1}, tchannel_conn:code_change(1, x1, [])),
               {"tcp connect timeout", fun connect_timeout/0},
@@ -21,7 +39,7 @@ tchannel_test_() ->
     }.
 
 
-%% @doc Connect to 192.0.2.0/24 (RFC 5737). Should timeout.
+%% @doc Connection timeout, mocking inet_tcp module.
 connect_timeout() ->
     Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_timeout}]}],
     Host = "192.0.2.1",
@@ -53,14 +71,15 @@ integration_() ->
      fun start_tchannel_echo/0,
      fun({_Port, {Host, Port}}) ->
              [
-              {"test connection", ?_test(test_connect({Host, Port}))},
-              {"gen_server nocrash", ?_test(test_gen_server_api({Host, Port}))}
+              {"test connect", ?_test(connect({Host, Port}))},
+              {"test connect with opts", ?_test(connect_with_opts({Host, Port}))},
+              {"gen_server nocrash", ?_test(gen_server_api({Host, Port}))}
              ]
      end
     }.
 
 %% @doc Unknown messages don't crash the underlying gen_server
-test_gen_server_api({Host, Port}) ->
+gen_server_api({Host, Port}) ->
     {ok, T} = tchannel:connect(Host, Port),
     ?assertEqual({error, invalid_request}, gen_server:call(T, invalid)),
     gen_server:cast(T, invalid),
@@ -69,10 +88,16 @@ test_gen_server_api({Host, Port}) ->
     ?assertMatch([_|_], tchannel:headers(T)),
     tchannel:close(T).
 
-test_connect({Host, Port}) ->
+connect({Host, Port}) ->
     {ok, T} = tchannel:connect(Host, Port),
     H = tchannel:headers(T),
     ?assertEqual(<<"python">>, proplists:get_value(<<"tchannel_language">>, H)),
+    tchannel:close(T).
+
+%% @doc Connect with options
+connect_with_opts({Host, Port}) ->
+    Opts = [{tcp_connect_timeout, 500}, {init_timeout, 500}],
+    {ok, T} = tchannel:connect(Host, Port, Opts),
     tchannel:close(T).
 
 %%========================================================================================
