@@ -1,5 +1,7 @@
 all: compile lint dialyzer test cover
 
+COVER := _build/test/cover/index.html
+
 compile:
 	rebar3 compile
 
@@ -11,6 +13,9 @@ test:
 
 cover:
 	rebar3 cover -v
+	@if [ -n "`sed -nE 's/[^0-9]*([0-9]+%).*/\1/p' $(COVER) | grep -v 100`" ]; then \
+		echo Error: lack of coverage detected; exit 1; \
+	fi
 
 lint:
 	rebar3 as lint lint
