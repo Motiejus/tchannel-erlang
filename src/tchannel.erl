@@ -98,6 +98,8 @@ check_options([{tcp_connect_timeout, T}|Options]) when is_integer(T) ->
     check_options(Options);
 check_options([{init_timeout, T}|Options]) when is_integer(T) ->
     check_options(Options);
+check_options([{tcp_options, L}|Options]) when is_list(L) ->
+    check_options(Options);
 check_options([Opt|_]) ->
     {error, {option, Opt}}.
 
@@ -107,5 +109,6 @@ merge_options(Options) ->
     F = fun(K, Default) -> {K, proplists:get_value(K, Options, Default)} end,
     [
      F(tcp_connect_timeout, ?DEFAULT_TCP_CONNECT_TIMEOUT),
-     F(init_timeout, ?DEFAULT_INIT_TIMEOUT)
+     F(init_timeout, ?DEFAULT_INIT_TIMEOUT),
+     F(tcp_options, [])
     ].

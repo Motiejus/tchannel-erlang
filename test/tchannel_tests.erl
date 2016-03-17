@@ -10,9 +10,8 @@ tchannel_test_() ->
              [
               fun connect_timeout/0,
               fun connect_fail/0,
-              fun init_req_tcp_fail/0
-             ] ++
-             [
+              fun init_req_tcp_fail/0,
+              fun first_send_fail/0,
               integration_(Apps)
              ]
      end
@@ -21,40 +20,52 @@ tchannel_test_() ->
 
 %% @doc Connect to 192.0.2.0/24 (RFC 5737). Should timeout.
 connect_timeout() ->
-    ?assertEqual({error, connect_timeout}, tchannel:connect("192.0.2.1", 2000)).
+    ?assertEqual({error, connect_timeout}, tchannel:connect("192.0.2.1", 1)).
 
 %% @doc Connect to 0.0.0.0:1. We assume nothing is listening...
 connect_fail() ->
     ?assertEqual({error, econnrefused}, tchannel:connect("0.0.0.0", 1)).
 
+%% @doc Unable to receive init res from the remote.
 init_req_tcp_fail() ->
-    Self = self(),
-    spawn(fun() -> gen_tcp_server(Self) end),
-    Port = receive {port, Port1} -> Port1 end,
+    Port = start_server_get_port(fun gen_tcp_server_close/1),
     ?assertEqual({error, closed}, tchannel:connect("127.0.0.1", Port)).
 
-%% @doc Creates a TCP socket, waits for a connection, and closes the socket.
-%%
-%% Sends Caller {port, inet:port()}.
-gen_tcp_server(Caller) ->
-    {ok, LSock} = gen_tcp:listen(0, [{ip, {127,0,0,1}}]),
-    {ok, Port} = inet:port(LSock),
-    Caller ! {port, Port},
-    {ok, Sock} = gen_tcp:accept(LSock),
-    gen_tcp:close(Sock),
-    gen_tcp:close(LSock).
+%% @doc Connection establishment succeeds, but sending init_req payload fails.
+first_send_fail() ->
+    Port = start_server_get_port(fun gen_tcp_server_close/1),
+    Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_nosend}]}],
+    ?assertEqual({error, closed}, tchannel:connect("127.0.0.1", Port, Opts)).
 
 %% @doc Integration test with tchannel_test.py
-integration_(Apps) ->
+integration_(_) ->
     {setup,
      fun start_tchannel_echo/0,
-     fun(_) -> ok end,
      fun({_Port, HostPort}) ->
              [
               ?_test(test_connect(HostPort))
              ]
      end
     }.
+
+test_connect(HostPort) ->
+    [Host, Port] = string:tokens(HostPort, ":"),
+    {ok, T} = tchannel:connect(Host, list_to_integer(Port)),
+    H = tchannel:headers(T),
+    ?assertEqual(<<"python">>, proplists:get_value(<<"tchannel_language">>, H)),
+    tchannel:close(T).
+
+%%========================================================================================
+%% Utilities
+%%========================================================================================
+
+start_server_get_port(Fun) ->
+    Self = self(),
+    spawn(fun() -> Fun(Self) end),
+    receive
+        {port, Port1} ->
+            Port1
+    end.
 
 %% @doc Starts tchannel json echo service. Tells where it's listening on.
 -spec start_tchannel_echo() -> {Port, HostPort} when
@@ -71,9 +82,22 @@ start_tchannel_echo() ->
     end,
     {Port, HostPort}.
 
-test_connect(HostPort) ->
-    [Host, Port] = string:tokens(HostPort, ":"),
-    {ok, T} = tchannel:connect(Host, list_to_integer(Port)),
-    H = tchannel:headers(T),
-    ?assertEqual(<<"python">>, proplists:get_value(<<"tchannel_language">>, H)),
-    tchannel:close(T).
+%% @doc Creates a TCP socket, waits for a connection, and closes the socket.
+%%
+%% Sends Caller {port, inet:port()}.
+gen_tcp_server_close(Caller) ->
+    {ok, LSock} = gen_tcp:listen(0, [{ip, {127,0,0,1}}]),
+    {ok, Port} = inet:port(LSock),
+    Caller ! {port, Port},
+    {ok, Sock} = gen_tcp:accept(LSock),
+    gen_tcp:close(Sock),
+    gen_tcp:close(LSock).
+
+%% @doc Create a TCP socket, but delay accepting the connection.
+%gen_tcp_server_noopen(Caller) ->
+%    {ok, LSock} = gen_tcp:listen(0, [{ip, {127,0,0,1}}]),
+%    {ok, Port} = inet:port(LSock),
+%    Caller ! {port, Port},
+%    receive
+%        ok -> ok
+%    end.

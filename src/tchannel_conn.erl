@@ -83,7 +83,9 @@ code_change(_Old, State, _Extra) ->
 %%==============================================================================
 init1(Address, Port, Options) ->
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
-    case gen_tcp:connect(Address, Port, [binary, {active, false}], Timeout) of
+    TcpOpts = proplists:get_value(tcp_options, Options),
+    ConnectOpts = [binary, {active, false}] ++ TcpOpts,
+    case gen_tcp:connect(Address, Port, ConnectOpts, Timeout) of
         {ok, Sock} ->
             State = #state{sock=Sock, options=Options},
             init_req(State);

@@ -13,7 +13,8 @@
 
 -type connect_option() ::
     {tcp_connect_timeout, timeout()} |
-    {init_timeout, timeout()}.
+    {init_timeout, timeout()} |
+    {tcp_options, [gen_tcp:connect_option()]}.
 
 -type hostport() :: binary().
 
