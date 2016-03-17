@@ -78,7 +78,7 @@ headers(TChannel) ->
 -spec close(TChannel) -> ok when
       TChannel :: tchannel().
 close(TChannel) ->
-    supervisor:terminate_child(tchannel_conn_sup, TChannel).
+    ok = supervisor:terminate_child(tchannel_conn_sup, TChannel).
 
 %%==============================================================================
 %% Internal functions

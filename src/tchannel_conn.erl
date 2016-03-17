@@ -82,6 +82,7 @@ code_change(_Old, State, _Extra) ->
 %% Internal functions
 %%==============================================================================
 init1(Address, Port, Options) ->
+    process_flag(trap_exit, true),
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
     TcpOpts = proplists:get_value(tcp_options, Options),
     ConnectOpts = [binary, {active, false}] ++ TcpOpts,

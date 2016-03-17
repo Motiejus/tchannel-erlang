@@ -8,13 +8,14 @@ tchannel_test_() ->
      fun(Apps) -> [application:stop(App) || App <- Apps] end,
      fun(Apps) ->
              [
+              ?_assertEqual({ok, x1}, tchannel_conn:code_change(1, x1, [])),
               {"tcp connect timeout", fun connect_timeout/0},
               {"tcp connection failure", fun connect_fail/0},
               {"failure in 'init req'", fun init_req_tcp_fail/0},
               {"failure to send first packet", fun first_send_fail/0},
               {"'init res' fail after first packet",
                fun init_res_after_first_packet_fail/0},
-              integration_(Apps)
+              integration_()
              ]
      end
     }.
@@ -47,19 +48,29 @@ init_res_after_first_packet_fail() ->
     ?assertEqual({error, closed}, tchannel:connect("127.0.0.1", Port)).
 
 %% @doc Integration test with tchannel_test.py
-integration_(_) ->
+integration_() ->
     {setup,
      fun start_tchannel_echo/0,
-     fun({_Port, HostPort}) ->
+     fun({_Port, {Host, Port}}) ->
              [
-              {"test connection", ?_test(test_connect(HostPort))}
+              {"test connection", ?_test(test_connect({Host, Port}))},
+              {"gen_server nocrash", ?_test(test_gen_server_api({Host, Port}))}
              ]
      end
     }.
 
-test_connect(HostPort) ->
-    [Host, Port] = string:tokens(HostPort, ":"),
-    {ok, T} = tchannel:connect(Host, list_to_integer(Port)),
+%% @doc Unknown messages don't crash the underlying gen_server
+test_gen_server_api({Host, Port}) ->
+    {ok, T} = tchannel:connect(Host, Port),
+    ?assertEqual({error, invalid_request}, gen_server:call(T, invalid)),
+    gen_server:cast(T, invalid),
+    T ! invalid,
+    % Check that server is responding ...
+    ?assertMatch([_|_], tchannel:headers(T)),
+    tchannel:close(T).
+
+test_connect({Host, Port}) ->
+    {ok, T} = tchannel:connect(Host, Port),
     H = tchannel:headers(T),
     ?assertEqual(<<"python">>, proplists:get_value(<<"tchannel_language">>, H)),
     tchannel:close(T).
@@ -89,7 +100,8 @@ start_tchannel_echo() ->
         {Port, {data, Data}} ->
             string:strip(Data, both, $\n)
     end,
-    {Port, HostPort}.
+    [Host, TcpPort] = string:tokens(HostPort, ":"),
+    {Port, {Host, list_to_integer(TcpPort)}}.
 
 %% @doc Create a TCP socket, waits for a connection, and closes the socket.
 %%

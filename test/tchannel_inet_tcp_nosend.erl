@@ -4,7 +4,7 @@
 
 -export([getaddrs/2, getserv/1, connect/4, send/2]).
 
-getaddrs(Address,Timer) -> inet:getaddrs_tm(Address,inet,Timer).
+getaddrs("127.0.0.1", _Timer) -> {ok,[{127,0,0,1}]}.
 
 getserv(Port) when is_integer(Port) -> {ok, Port}.
 
