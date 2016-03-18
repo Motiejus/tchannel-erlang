@@ -47,7 +47,8 @@ connect_timeout() ->
 
 %% @doc Connect to 127.0.0.1:1. Get eaccess...
 connect_fail() ->
-    ?assertEqual({error, eacces}, tchannel:connect({255,255,255,255}, 1)).
+    % {error, eaccess} on osx, {error,enetunreach} on travis-ci/linux
+    ?assertMatch({error, _}, tchannel:connect({255,255,255,255}, 1)).
 
 %% @doc Unable to receive init res from the remote.
 init_req_tcp_fail() ->
