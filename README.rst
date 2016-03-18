@@ -93,6 +93,11 @@ I expect to make this true in short-term::
 * ``tchannel_conn`` reads the incoming connection and hands over stuff to
   listeners.
 
+Contributing
+------------
+
+Unknown yet. Please contact me before making patches.
+
 TODO
 ----
 
