@@ -11,6 +11,8 @@ cache:
   directories:
     - _build/dialyzer
     - _build/venv
+before_cache:
+    - rm -f _build/dialyzer/lib
 
 before_script: make setup
 script: make
