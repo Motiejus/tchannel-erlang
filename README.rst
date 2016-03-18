@@ -17,7 +17,7 @@ TODO
 Things to do before any kind of announcement of this experiment:
 
 * Documentation generator.
-* Travis-ci.
+* Travis-ci icon.
 * Coveralls.
 
 TChannel
