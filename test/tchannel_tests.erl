@@ -42,28 +42,28 @@ tchannel_test_() ->
 %% @doc Connection timeout, mocking inet_tcp module.
 connect_timeout() ->
     Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_timeout}]}],
-    Host = "192.0.2.1",
+    Host = {192,0,2,1},
     ?assertEqual({error, connect_timeout}, tchannel:connect(Host, 1, Opts)).
 
-%% @doc Connect to 127.0.0.1:1. We assume nothing is listening...
+%% @doc Connect to 127.0.0.1:1. Get eaccess...
 connect_fail() ->
-    ?assertEqual({error, econnrefused}, tchannel:connect("127.0.0.1", 1)).
+    ?assertEqual({error, eacces}, tchannel:connect({255,255,255,255}, 1)).
 
 %% @doc Unable to receive init res from the remote.
 init_req_tcp_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_close/1),
-    ?assertEqual({error, closed}, tchannel:connect("127.0.0.1", Port)).
+    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port)).
 
 %% @doc Connection establishment succeeds, but sending init_req payload fails.
 first_send_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_close/1),
     Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_nosend}]}],
-    ?assertEqual({error, closed}, tchannel:connect("127.0.0.1", Port, Opts)).
+    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port, Opts)).
 
 %% @doc Connection establishment succeeds, receive first header, connection err.
 init_res_after_first_packet_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_first_16b_only/1),
-    ?assertEqual({error, closed}, tchannel:connect("127.0.0.1", Port)).
+    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port)).
 
 %% @doc Integration test with tchannel_test.py
 integration_() ->

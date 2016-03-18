@@ -17,6 +17,8 @@ cover:
 	$(REBAR3) cover -v
 	@if [ -n "`sed -nE 's/[^0-9]*([0-9]+%).*/\1/p' $(COVER) | grep -v 100`" ]; then \
 		echo Error: lack of coverage detected; exit 1; \
+	else \
+		echo "===> 100% code coverage. Keep it up!"; \
 	fi
 
 lint:
@@ -27,9 +29,11 @@ clean:
 	rm -fr _build/venv
 
 setup: $(REBAR3)
-	mkdir -p _build
-	virtualenv _build/venv
-	_build/venv/bin/pip install tchannel==0.21.4
+	if [ ! -f _build/venv/bin/tcurl.py ]; then \
+		mkdir -p _build; \
+		virtualenv _build/venv; \
+		_build/venv/bin/pip install tchannel==0.21.4; \
+	fi
 
 ./rebar3:
 	erl -noshell -s inets start -s ssl start \
