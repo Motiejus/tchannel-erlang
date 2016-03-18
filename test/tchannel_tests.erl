@@ -45,9 +45,9 @@ connect_timeout() ->
     Host = "192.0.2.1",
     ?assertEqual({error, connect_timeout}, tchannel:connect(Host, 1, Opts)).
 
-%% @doc Connect to 0.0.0.0:1. We assume nothing is listening...
+%% @doc Connect to 127.0.0.1:1. We assume nothing is listening...
 connect_fail() ->
-    ?assertEqual({error, econnrefused}, tchannel:connect("0.0.0.0", 1)).
+    ?assertEqual({error, econnrefused}, tchannel:connect("127.0.0.1", 1)).
 
 %% @doc Unable to receive init res from the remote.
 init_req_tcp_fail() ->
