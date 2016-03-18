@@ -8,19 +8,19 @@ compile:
 	$(REBAR3) compile
 
 dialyzer:
-	$(REBAR3) as test dialyzer
+	$(REBAR3) as dialyzer dialyzer
 
 test:
-	$(REBAR3) as test eunit
+	$(REBAR3) eunit
 
 cover:
-	$(REBAR3) as test cover -v
+	$(REBAR3) cover -v
 	@if [ -n "`sed -nE 's/[^0-9]*([0-9]+%).*/\1/p' $(COVER) | grep -v 100`" ]; then \
 		echo Error: lack of coverage detected; exit 1; \
 	fi
 
 lint:
-	$(REBAR3) as test lint
+	$(REBAR3) as lint lint
 
 clean:
 	$(REBAR3) clean

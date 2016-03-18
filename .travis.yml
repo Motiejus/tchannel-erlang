@@ -9,7 +9,8 @@ addons:
 
 cache:
   directories:
-    - _build/test
+    - _build/dialyzer
+    - _build/venv
 
 before_script: make setup
 script: make
