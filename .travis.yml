@@ -14,5 +14,5 @@ cache:
 before_cache:
     - rm -rf _build/dialyzer/lib
 
-before_script: make setup
+install: make setup
 script: make
