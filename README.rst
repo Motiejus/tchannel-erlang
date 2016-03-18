@@ -1,3 +1,6 @@
+.. image:: https://api.travis-ci.org/Motiejus/tchannel-erlang.png?branch=master
+    :target: http://travis-ci.org/Motiejus/tchannel-erlang
+
 TChannel-erlang
 ===============
 
@@ -17,7 +20,6 @@ TODO
 Things to do before any kind of announcement of this experiment:
 
 * Documentation generator.
-* Travis-ci icon.
 * Coveralls.
 
 TChannel
