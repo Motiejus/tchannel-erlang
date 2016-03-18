@@ -12,7 +12,7 @@ cache:
     - _build/dialyzer
     - _build/venv
 before_cache:
-    - rm -f _build/dialyzer/lib
+    - rm -rf _build/dialyzer/lib
 
 before_script: make setup
 script: make
