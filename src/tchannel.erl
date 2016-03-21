@@ -19,9 +19,9 @@
 -export([close/1]).
 -export([connect/2]).
 -export([connect/3]).
-%-export([create_sub/2]).
+-export([create_sub/2]).
 -export([headers/1]).
-%-export([send/5]).
+-export([send/5]).
 
 %% @doc Connect to a tchannel endpoint with default options.
 -spec connect(Address, Port) -> {ok, Channel} | {error, Reason} when
@@ -48,21 +48,22 @@ connect(Address, Port) ->
 connect(Address, Port, Options) ->
     connect1(Address, Port, Options).
 
-%-spec send(SubChannel, Arg1, Arg2, Arg3, Opts) -> ok when
-%      SubChannel :: subchannel(),
-%      Arg1 :: term(),
-%      Arg2 :: term(),
-%      Arg3 :: term(),
-%      Opts :: [msg_option()].
-%send({TChannel, Service}, Arg1, Arg2, Arg3, Opts) ->
-%    gen_server:cast(TChannel, {call_req, Service, {Arg1, Arg2, Arg3}, Opts}).
+-spec send(SubChannel, Arg1, Arg2, Arg3, Opts) -> ok | {error, Error} when
+      SubChannel :: subchannel(),
+      Arg1 :: iodata(),
+      Arg2 :: iodata(),
+      Arg3 :: iodata(),
+      Opts :: [msg_option()],
+      Error :: inet:posix() | closed.
+send({TChannel, Service}, Arg1, Arg2, Arg3, Opts) ->
+    gen_server:call(TChannel, {call_req, Service, {Arg1, Arg2, Arg3}, Opts}).
 
-%-spec create_sub(TChannel, ServiceName) -> {ok, SubChannel} when
-%      TChannel :: tchannel(),
-%      ServiceName :: binary(),
-%      SubChannel :: subchannel().
-%create_sub(TChannel, ServiceName) ->
-%    {TChannel, ServiceName}.
+-spec create_sub(TChannel, ServiceName) -> {ok, SubChannel} when
+      TChannel :: tchannel(),
+      ServiceName :: binary(),
+      SubChannel :: subchannel().
+create_sub(TChannel, ServiceName) ->
+    {TChannel, ServiceName}.
 
 %% @doc List of headers returned by remote party on 'init res'.
 -spec headers(TChannel) -> [{HeaderKey, HeaderVal}] when

@@ -17,20 +17,18 @@
     {tcp_options, [gen_tcp:connect_option()]}.
 
 -type hostport() :: binary().
-
 -type transport_header() ::
     {as, thrift | sthrift | json | http | raw} | % Arg Scheme, required
-    {cas, hostport() | undefined}              | % Claim At Start
-    {caf, hostport() | undefined}              | % Claim At Finish
+    {cas, hostport()}                          | % Claim At Start
+    {caf, hostport()}                          | % Claim At Finish
     {cn, binary()}                             | % Caller Name, required
-    {re, c | t | n | ct | tc | undefined}      | % Retry Flags
-    {se, 2 | undefined}                        | % Speculative execution
+    {re, c | t | n | ct | tc}                  | % Retry Flags
+    {se, '2'}                                  | % Speculative execution
     {fd, binary()}                             | % Failure Domain
     {sk, binary()}                             | % Shard Key
     {rd, binary()}.                              % Routing Delegate
 
 -type msg_option() ::
-    {packet_id, packet_id()}         | % required
     {headers, [transport_header()]}  | % required
     {ttl, pos_integer() | undefined} | % milliseconds. Optional.
     {tracing, binary()}.               % not supported
@@ -39,7 +37,6 @@
     {option, any()} | % bad argument
     connect_timeout | % timeout from gen_tcp:connect
     closed          | % remote end closed the connection
-    protocol        | % tchannel protocol error
     inet:posix().
 
 -type packet_id() :: 0..16#fffffffe.

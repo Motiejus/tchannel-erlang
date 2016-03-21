@@ -12,6 +12,7 @@
 -record(state, {
           sock :: gen_tcp:socket(),
           options :: [connect_option()],
+          next_packet_id :: packet_id(),
           headers :: [{binary(), binary()}],
           version :: pos_integer()  % tchannel version reported by remote
 }).
@@ -56,12 +57,13 @@ init([{Address, Port, Options}]) ->
 
 handle_call(headers, _From, State=#state{headers=Headers}) ->
     {reply, Headers, State};
+handle_call({call_req, Service, Args, MsgOpts}, _From, State) ->
+    {Ret, State1} = call_req(State, Service, Args, MsgOpts),
+    {reply, Ret, State1};
 handle_call(Request, From, State) ->
     lager:warning("Unknown call from ~p: ~p", [From, Request]),
     {reply, {error, invalid_request}, State}.
 
-%handle_cast({call_req, Service, Args, MsgOpts}, State) ->
-%    call_req(State, Service, Args, MsgOpts);
 handle_cast(Request, State) ->
     lager:warning("Unknown cast: ~p", [Request]),
     {noreply, State}.
@@ -120,21 +122,39 @@ init_res(#state{sock=Sock, options=Options}=State) ->
 
 init_res1(State, _Id, Payload) ->
     <<Version:16, NH:16, Rest/binary>> = Payload,
-    %lager:info("size(Rest): ~p, Rest: ~p", [size(Rest), Rest]),
     Headers = parse_headers(Rest, NH),
-    State2 = State#state{version=Version, headers=Headers},
+    State2 = State#state{version=Version, headers=Headers, next_packet_id=1},
     {ok, State2}.
 
-
-%-spec call_req(State, Service, Args, MsgOpts) -> ok when
-%      State :: state(),
-%      Service :: binary(),
-%      Args :: {term(), term(), term()},
-%      MsgOpts :: [msg_option()].
-%call_req(State, Service, Args, MsgOptions) ->
-%    PacketId = proplists:get_value(packet_id, MsgOptions),
-%    Payload = Args,
-%    construct_packet(call_req, PacketId, Payload).
+-spec call_req(State, Service, Args, MsgOpts) ->
+    {ok, State} | {{error, Reason}, State} when
+      State :: state(),
+      Service :: binary(),
+      Args :: {iodata(), iodata(), iodata()},
+      MsgOpts :: [msg_option()],
+      Reason :: inet:posix() | closed.
+call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
+    PacketId = State#state.next_packet_id,
+    Socket = State#state.sock,
+    TTL = proplists:get_value(ttl, MsgOptions, ?DEFAULT_TTL),
+    Headers = transport_headers(proplists:get_value(headers, MsgOptions)),
+    Payload =
+    [
+     <<
+       0:8,                               % XXX flags no fragmentation support
+       TTL:32,                            % ttl
+       0:200,                             % XXX tracing not supported
+       (size(Service)):8, Service/binary  % service
+     >>, Headers, <<                      % headers
+       0:8                                % XXX csumtype not supported
+     >>,
+     <<(iolist_size(Arg1)):16>>, Arg1,
+     <<(iolist_size(Arg2)):16>>, Arg2,
+     <<(iolist_size(Arg3)):16>>, Arg3
+    ],
+    Packet = construct_packet(call_req, PacketId, Payload),
+    State2 = State#state{next_packet_id = PacketId + 1},
+    {gen_tcp:send(Socket, Packet), State2}.
 
 -spec parse_headers(Binary, NH) -> [{Key, Value}] when
       Binary :: binary(),
@@ -190,19 +210,31 @@ construct_init_req() ->
                {<<"tchannel_language_version">>, OTP},
                {<<"tchannel_version">>, ?TCHANNEL_LIB_VERSION}
               ],
-    HeaderPayload =
+    Payload =
     [
-     <<(length(Headers)):16>>,
-     [<<
-        (iolist_size(K)):16, K/binary,
-        (iolist_size(V)):16, V/binary
-      >> || {K, V} <- Headers
-     ]
+     <<?PROTOCOL_VERSION:16, (length(Headers)):16>>,
+     <<
+       <<(iolist_size(K)):16, K/binary,
+         (iolist_size(V)):16, V/binary
+       >> || {K, V} <- Headers
+     >>
     ],
 
-    Payload = [<<?PROTOCOL_VERSION:16>>, HeaderPayload],
-    construct_packet(init_req, 1, Payload).
+    construct_packet(init_req, 0, Payload).
 
+%% @doc Construct transport headers from [transport_header()].
+-spec transport_headers(Headers) -> Payload when
+      Headers :: [transport_header()],
+      Payload :: iodata().
+transport_headers(Headers) ->
+    [
+     <<(length(Headers)):8>>,
+     <<
+       <<(iolist_size(bin(K))):8, K/binary,
+         (iolist_size(bin(V))):8, V/binary
+       >> || {K, V} <- Headers
+     >>
+    ].
 
 %% @doc Construct a tchannel packet.
 %%
@@ -226,9 +258,9 @@ construct_packet(Type, Id, Payload) ->
 
 %% @doc Numeric tchannel packet type.
 -spec type_num(packet_type()) -> packet_type_no().
-type_num(init_req) ->                16#01.
+type_num(init_req) ->                16#01;
 %type_num(init_res) ->               16#02;
-%type_num(call_req) ->               16#03;
+type_num(call_req) ->                16#03.
 %type_num(call_res) ->               16#04;
 %type_num(call_req_continue) ->      16#13;
 %type_num(call_res_continue) ->      16#14;
@@ -250,3 +282,6 @@ type_name(16#02) -> init_res.
 %type_name(16#d0) -> ping_req;
 %type_name(16#d1) -> ping_res;
 %type_name(16#ff) -> error.
+
+bin(X) when is_atom(X) -> atom_to_binary(X, utf8);
+bin(X) when is_binary(X) -> X.

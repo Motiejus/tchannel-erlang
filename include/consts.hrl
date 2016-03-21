@@ -4,4 +4,5 @@
 
 -define(DEFAULT_TCP_CONNECT_TIMEOUT, 500).
 -define(DEFAULT_INIT_TIMEOUT, 500).
+-define(DEFAULT_TTL, 16#ffffffff).
 
