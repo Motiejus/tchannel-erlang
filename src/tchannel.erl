@@ -48,15 +48,15 @@ connect(Address, Port) ->
 connect(Address, Port, Options) ->
     connect1(Address, Port, Options).
 
--spec send(SubChannel, Arg1, Arg2, Arg3, Opts) -> ok | {error, Error} when
+-spec send(SubChannel, Arg1, Arg2, Arg3, MsgOpts) -> ok | {error, Error} when
       SubChannel :: subchannel(),
       Arg1 :: iodata(),
       Arg2 :: iodata(),
       Arg3 :: iodata(),
-      Opts :: [msg_option()],
+      MsgOpts :: [msg_option()],
       Error :: inet:posix() | closed.
-send({TChannel, Service}, Arg1, Arg2, Arg3, Opts) ->
-    gen_server:call(TChannel, {call_req, Service, {Arg1, Arg2, Arg3}, Opts}).
+send({TChannel, Service}, Arg1, Arg2, Arg3, MsgOpts) ->
+    gen_server:call(TChannel, {call_req, Service, {Arg1, Arg2, Arg3}, MsgOpts}).
 
 -spec create_sub(TChannel, ServiceName) -> {ok, SubChannel} when
       TChannel :: tchannel(),

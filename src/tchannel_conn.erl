@@ -230,8 +230,8 @@ transport_headers(Headers) ->
     [
      <<(length(Headers)):8>>,
      <<
-       <<(iolist_size(bin(K))):8, K/binary,
-         (iolist_size(bin(V))):8, V/binary
+       <<(iolist_size(bin(K))):8, (bin(K))/binary,
+         (iolist_size(bin(V))):8, (bin(V))/binary
        >> || {K, V} <- Headers
      >>
     ].

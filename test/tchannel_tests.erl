@@ -74,20 +74,11 @@ integration_() ->
              [
               {"test connect", ?_test(connect({Host, Port}))},
               {"test connect with opts", ?_test(connect_with_opts({Host, Port}))},
-              {"gen_server nocrash", ?_test(gen_server_api({Host, Port}))}
+              {"gen_server nocrash", ?_test(gen_server_api({Host, Port}))},
+              {"test call", ?_test(call({Host, Port}))}
              ]
      end
     }.
-
-%% @doc Unknown messages don't crash the underlying gen_server
-gen_server_api({Host, Port}) ->
-    {ok, T} = tchannel:connect(Host, Port),
-    ?assertEqual({error, invalid_request}, gen_server:call(T, invalid)),
-    gen_server:cast(T, invalid),
-    T ! invalid,
-    % Check that server is responding ...
-    ?assertMatch([_|_], tchannel:headers(T)),
-    tchannel:close(T).
 
 connect({Host, Port}) ->
     {ok, T} = tchannel:connect(Host, Port),
@@ -100,6 +91,22 @@ connect_with_opts({Host, Port}) ->
     Opts = [{tcp_connect_timeout, 500}, {init_timeout, 500}],
     {ok, T} = tchannel:connect(Host, Port, Opts),
     tchannel:close(T).
+
+%% @doc Unknown messages don't crash the underlying gen_server
+gen_server_api({Host, Port}) ->
+    {ok, T} = tchannel:connect(Host, Port),
+    ?assertEqual({error, invalid_request}, gen_server:call(T, invalid)),
+    gen_server:cast(T, invalid),
+    T ! invalid,
+    % Check that server is responding ...
+    ?assertMatch([_|_], tchannel:headers(T)),
+    tchannel:close(T).
+
+call({Host, Port}) ->
+    {ok, T} = tchannel:connect(Host, Port),
+    Sub = tchannel:create_sub(T, <<"echo-server">>),
+    Headers = [{as, json}, {cn, tchannel_unit}, {fd, <<"echo-services">>}],
+    ok = tchannel:send(Sub, <<"/echo">>, <<>>, <<"1">>, [{headers, Headers}]).
 
 %%========================================================================================
 %% Utilities
