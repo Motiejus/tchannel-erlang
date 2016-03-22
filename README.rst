@@ -93,10 +93,12 @@ Sending the actual message::
 Wait for the reply::
 
   receive
-    {tchannel, SubChannel, {Id, Code, Tracing, Headers, Arg1, Arg2, Arg3}} ->
-        react_data(Arg1, Arg2, Arg3);
-    {tchannel_closed, SubChannel} ->
-        react_closed(SubChannel)
+    {tchannel, TChannel, {Id, Code, Tracing, Headers, Arg1, Arg2, Arg3}} ->
+        ...;
+    {tchannel_closed, TChannel} ->
+        ...;
+    {tchannel_error, TChannel, Reason} ->
+        ...
   end.
 
 Contributing
