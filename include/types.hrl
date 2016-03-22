@@ -1,3 +1,6 @@
+% tchannel service
+-type service() :: binary().
+
 -type packet_type() ::
     init_req          | % First message on every connection must be init
     init_res          | % Remote response to init req
@@ -12,9 +15,10 @@
     error.              % Protocol level error
 
 -type connect_option() ::
-    {tcp_connect_timeout, timeout()} |
-    {init_timeout, timeout()} |
-    {tcp_options, [gen_tcp:connect_option()]}.
+    {tcp_connect_timeout, timeout()}          |
+    {init_timeout, timeout()}                 |
+    {tcp_options, [gen_tcp:connect_option()]} | % passed to gen_tcp:connect
+    {register, service() | [service()]}.        % register incoming msgs for
 
 -type hostport() :: binary().
 -type transport_header() ::

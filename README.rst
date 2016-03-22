@@ -57,12 +57,15 @@ API
 
 The sketch of API is as follows.
 
-See tchannel:option/0 for more options::
+See ``tchannel:option/0`` for more options::
 
   Opts = [{tcp_connect_timeout, 500},
-          {init_timeout, 500}],
+          {init_timeout, 500},
+          {register, [<<"destination_service">>]}],
 
-Establishes the TCP connection and initializes tchannel state::
+``{register, Service}`` registers the caller for incoming messages from that
+service. Now, call to establish the TCP connection and initialize tchannel
+state::
 
   {ok, Channel} = tchannel:connect("127.0.0.1:3001", <<"sender">>, Options),
 
@@ -77,15 +80,6 @@ Constructing headers for ``tchannel:send/3``. See tchannel spec for details::
              {sk, undefined}     % optional
              {rd, undefined}],   % optional
 
-Getting a sub-channel and subscribing to the messages::
-
-  {ok, SubChannel} = tchannel:create_sub(Channel, <<"destination_service">>),
-
-.. DANGER::
-   This API exposes a race condition, when the first message over the
-   subchannel is to be received. The API will change to acommodate for it, when
-   we have a better idea on how it will be used.
-
 Contstructing outgoing message::
 
   MsgOpts = [{headers, Headers},    % required, see above
@@ -94,7 +88,7 @@ Contstructing outgoing message::
 
 Sending the actual message::
 
-  tchannel:send(SubChannel, Arg1, Arg2, Arg3, MsgOpts),
+  tchannel:send(TChannel, DestService, Arg1, Arg2, Arg3, MsgOpts),
 
 Wait for the reply::
 
@@ -119,8 +113,7 @@ changes when the codebase is small and limited, rather than big and complete.
 Given you went thus far, we lack:
 
 1. The API for creating a channel, listening for it, terminating it is strange
-   and incomplete (with some caveats documented above).  It will very likely be
-   changed in the future.
+   and incomplete. It will very likely be changed in the future.
 2. Initial version will likely not implement >64K requests and responses.
 3. In Erlang, a TChannel instance maps 1:1 to the underlying TCP connection. It
    is not true in Go/Node APIs, but is not mandated by the protocol. We'll know

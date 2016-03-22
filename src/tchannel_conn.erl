@@ -14,7 +14,8 @@
           options :: [connect_option()],
           next_packet_id :: packet_id(),
           headers :: [{binary(), binary()}],
-          version :: pos_integer()  % tchannel version reported by remote
+          version :: pos_integer(),  % tchannel version reported by remote
+          registrees :: [{service(), pid()}]
 }).
 -type state() :: #state{}.
 
@@ -32,6 +33,10 @@
 %% API
 -export([start_link/1]).
 
+-ifdef(TEST).
+-export([next_packet_id/1]).
+-endif.
+
 %%==============================================================================
 %% gen_server API
 %%==============================================================================
@@ -46,35 +51,45 @@
 start_link(Args) ->
     gen_server:start_link(?MODULE, [Args], []).
 
--spec init([{Address, Port, Options}]) -> {ok, State} | {stop, Reason} when
+
+-spec init([{Address, Port, Options, Caller}]) ->
+    {ok, State} | {stop, Reason} when
       Address :: inet:ip_address() | inet:hostname(),
       Port :: inet:port_number(),
       Options :: [connect_option()],
+      Caller :: pid(),
       State :: state(),
       Reason :: error_reason().
-init([{Address, Port, Options}]) ->
-    init1(Address, Port, Options).
+init([{Address, Port, Options, Caller}]) ->
+    init1(Address, Port, Options, Caller).
+
 
 handle_call(headers, _From, State=#state{headers=Headers}) ->
     {reply, Headers, State};
+
 handle_call({call_req, Service, Args, MsgOpts}, _From, State) ->
     {Ret, State1} = call_req(State, Service, Args, MsgOpts),
     {reply, Ret, State1};
+
 handle_call(Request, From, State) ->
     lager:warning("Unknown call from ~p: ~p", [From, Request]),
     {reply, {error, invalid_request}, State}.
+
 
 handle_cast(Request, State) ->
     lager:warning("Unknown cast: ~p", [Request]),
     {noreply, State}.
 
+
 handle_info(Info, State) ->
     lager:warning("Unknown info: ~p", [Info]),
     {noreply, State}.
 
+
 terminate(Reason, #state{sock=Sock}) ->
     lager:debug("Terminating ~p because of ~p", [self(), Reason]),
     gen_tcp:close(Sock).
+
 
 code_change(_Old, State, _Extra) ->
     {ok, State}.
@@ -82,14 +97,20 @@ code_change(_Old, State, _Extra) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
-init1(Address, Port, Options) ->
+init1(Address, Port, Options, Caller) ->
     process_flag(trap_exit, true),
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
     TcpOpts = proplists:get_value(tcp_options, Options),
+    Registrees = sofs:to_external(
+                   sofs:product(
+                     sofs:set(proplists:get_value(register, Options)),
+                     sofs:set([Caller])
+                    )
+                  ),
     ConnectOpts = [binary, {active, false}] ++ TcpOpts,
     case gen_tcp:connect(Address, Port, ConnectOpts, Timeout) of
         {ok, Sock} ->
-            State = #state{sock=Sock, options=Options},
+            State = #state{sock=Sock, options=Options, registrees=Registrees},
             init_req(State);
         {error, timeout} ->
             {stop, connect_timeout};
@@ -153,7 +174,7 @@ call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
      <<(iolist_size(Arg3)):16>>, Arg3
     ],
     Packet = construct_packet(call_req, PacketId, Payload),
-    State2 = State#state{next_packet_id = PacketId + 1},
+    State2 = State#state{next_packet_id = next_packet_id(PacketId)},
     {gen_tcp:send(Socket, Packet), State2}.
 
 -spec parse_headers(Binary, NH) -> [{Key, Value}] when
@@ -219,7 +240,6 @@ construct_init_req() ->
        >> || {K, V} <- Headers
      >>
     ],
-
     construct_packet(init_req, 0, Payload).
 
 %% @doc Construct transport headers from [transport_header()].
@@ -283,5 +303,10 @@ type_name(16#02) -> init_res.
 %type_name(16#d1) -> ping_res;
 %type_name(16#ff) -> error.
 
+-spec bin(atom() | binary()) -> binary().
 bin(X) when is_atom(X) -> atom_to_binary(X, utf8);
 bin(X) when is_binary(X) -> X.
+
+-spec next_packet_id(packet_id()) -> packet_id().
+next_packet_id(16#fffffffe) -> 0;
+next_packet_id(X) -> X + 1.

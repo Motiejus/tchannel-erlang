@@ -4,6 +4,13 @@
 
 -define(conn(Opt), (tchannel:connect("127.0.0.1", 1, [Opt]))).
 
+internals_test_() ->
+    [
+     ?_assertEqual(0, tchannel_conn:next_packet_id(16#fffffffe)),
+     ?_assertEqual(1, tchannel_conn:next_packet_id(0)),
+     ?_assertEqual(2, tchannel_conn:next_packet_id(1))
+    ].
+
 api_test_() ->
     [
      ?_assertEqual(
@@ -103,14 +110,18 @@ gen_server_api({Host, Port}) ->
     tchannel:close(T).
 
 call({Host, Port}) ->
-    {ok, T} = tchannel:connect(Host, Port),
-    Sub = tchannel:create_sub(T, <<"echo-server">>),
-    Headers = [{as, json}, {cn, tchannel_unit}, {fd, <<"echo-services">>}],
-    ok = tchannel:send(Sub, <<"/echo">>, <<>>, <<"1">>, [{headers, Headers}]).
+    {ok, T} = tchannel:connect(Host, Port, [{register, [<<"tchannel_unit">>]}]),
+    Headers = [
+               {as, json},
+               {cn, tchannel_unit},
+               {fd, <<"echo-services">>}
+              ],
+    Opts = [{headers, Headers}],
+    ok = tchannel:send(T, <<"echo-server">>, <<"/echo">>, <<>>, <<"1">>, Opts).
 
-%%========================================================================================
+%%==============================================================================
 %% Utilities
-%%========================================================================================
+%%==============================================================================
 
 start_server_get_port(Fun) ->
     Self = self(),
@@ -157,12 +168,3 @@ gen_tcp_server_first_16b_only(Caller) ->
     gen_tcp:send(Sock, <<32:16, 16#02:8, 0:8, 0:32, 0:64>>),
     gen_tcp:close(Sock),
     gen_tcp:close(LSock).
-
-%% @doc Create a TCP socket, but delay accepting the connection.
-%gen_tcp_server_noopen(Caller) ->
-%    {ok, LSock} = gen_tcp:listen(0, [{ip, {127,0,0,1}}]),
-%    {ok, Port} = inet:port(LSock),
-%    Caller ! {port, Port},
-%    receive
-%        ok -> ok
-%    end.
