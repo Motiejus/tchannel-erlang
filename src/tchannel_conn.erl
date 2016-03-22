@@ -135,17 +135,18 @@ init_req(#state{sock=Sock}=State) ->
       Reason:: error_reason().
 init_res(#state{sock=Sock, options=Options}=State) ->
     case recv_packet(Sock, proplists:get_value(init_timeout, Options)) of
-        {ok, {init_res, Id, Payload}} ->
-            init_res1(State, Id, Payload);
+        {ok, {init_res, _Id, Payload}} ->
+            <<Version:16, NH:16, Rest/binary>> = Payload,
+            Headers = parse_headers(Rest, NH),
+            State2 = State#state{
+                       version=Version,
+                       headers=Headers,
+                       next_packet_id=1},
+            inet:setopts(Sock, [{active, once}]),
+            {ok, State2};
         {error, Reason} ->
             {stop, Reason}
     end.
-
-init_res1(State, _Id, Payload) ->
-    <<Version:16, NH:16, Rest/binary>> = Payload,
-    Headers = parse_headers(Rest, NH),
-    State2 = State#state{version=Version, headers=Headers, next_packet_id=1},
-    {ok, State2}.
 
 -spec call_req(State, Service, Args, MsgOpts) ->
     {ok, State} | {{error, Reason}, State} when
