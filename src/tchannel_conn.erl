@@ -10,7 +10,7 @@
 -behavior(gen_server).
 
 -record(state, {
-          sock :: gen_tcp:socket(),
+          socket :: gen_tcp:socket(),
           options :: [connect_option()],
           next_packet_id :: packet_id(),
           headers :: [{binary(), binary()}],
@@ -81,14 +81,26 @@ handle_cast(Request, State) ->
     {noreply, State}.
 
 
+%handle_info({tcp, S, Msg}, #state{socket=S}=State) ->
+%    handle_tcp_recv(Msg, State);
+%
+%%% closed/errored tcp socket will just inform the registrees.
+%handle_info({tcp_closed, S}, #state{socket=S, registrees=Rs}=State) ->
+%    lists:foreach(fun({_, R}) -> R ! {tchannel_closed, self()} end, Rs),
+%    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
+%    {stop, normal, State};
+%handle_info({tcp_error, S, Reason}, #state{socket=S, registrees=Rs}=State) ->
+%    lists:foreach(fun({_, R}) -> R ! {tchannel_error, self(), Reason} end, Rs),
+%    lager:debug("tcp '~p' error: '~p', terminating '~p'", [S, Reason, self()]),
+%    {stop, normal, State};
 handle_info(Info, State) ->
     lager:warning("Unknown info: ~p", [Info]),
     {noreply, State}.
 
 
-terminate(Reason, #state{sock=Sock}) ->
+terminate(Reason, #state{socket=Socket}) ->
     lager:debug("Terminating ~p because of ~p", [self(), Reason]),
-    gen_tcp:close(Sock).
+    gen_tcp:close(Socket).
 
 
 code_change(_Old, State, _Extra) ->
@@ -109,8 +121,10 @@ init1(Address, Port, Options, Caller) ->
                   ),
     ConnectOpts = [binary, {active, false}] ++ TcpOpts,
     case gen_tcp:connect(Address, Port, ConnectOpts, Timeout) of
-        {ok, Sock} ->
-            State = #state{sock=Sock, options=Options, registrees=Registrees},
+        {ok, Socket} ->
+            State = #state{socket=Socket,
+                           options=Options,
+                           registrees=Registrees},
             init_req(State);
         {error, timeout} ->
             {stop, connect_timeout};
@@ -121,9 +135,9 @@ init1(Address, Port, Options, Caller) ->
 -spec init_req(State) -> {ok, State} | {stop, Reason} when
       State :: state(),
       Reason:: error_reason().
-init_req(#state{sock=Sock}=State) ->
+init_req(#state{socket=Socket}=State) ->
     Packet = construct_init_req(),
-    case gen_tcp:send(Sock, Packet) of
+    case gen_tcp:send(Socket, Packet) of
         ok ->
             init_res(State);
         {error, Reason} ->
@@ -133,8 +147,8 @@ init_req(#state{sock=Sock}=State) ->
 -spec init_res(State) -> {ok, State} | {stop, Reason} when
       State :: state(),
       Reason:: error_reason().
-init_res(#state{sock=Sock, options=Options}=State) ->
-    case recv_packet(Sock, proplists:get_value(init_timeout, Options)) of
+init_res(#state{socket=Socket, options=Options}=State) ->
+    case recv_packet(Socket, proplists:get_value(init_timeout, Options)) of
         {ok, {init_res, _Id, Payload}} ->
             <<Version:16, NH:16, Rest/binary>> = Payload,
             Headers = parse_headers(Rest, NH),
@@ -142,7 +156,7 @@ init_res(#state{sock=Sock, options=Options}=State) ->
                        version=Version,
                        headers=Headers,
                        next_packet_id=1},
-            inet:setopts(Sock, [{active, once}]),
+            inet:setopts(Socket, [{active, once}]),
             {ok, State2};
         {error, Reason} ->
             {stop, Reason}
@@ -157,7 +171,7 @@ init_res(#state{sock=Sock, options=Options}=State) ->
       Reason :: inet:posix() | closed.
 call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
     PacketId = State#state.next_packet_id,
-    Socket = State#state.sock,
+    Socket = State#state.socket,
     TTL = proplists:get_value(ttl, MsgOptions, ?DEFAULT_TTL),
     Headers = transport_headers(proplists:get_value(headers, MsgOptions)),
     Payload =
@@ -177,6 +191,16 @@ call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
     Packet = construct_packet(call_req, PacketId, Payload),
     State2 = State#state{next_packet_id = next_packet_id(PacketId)},
     {gen_tcp:send(Socket, Packet), State2}.
+
+%%% @doc Handle incoming data from the socket.
+%%%
+%%% We receive a list here: first two bytes are always in a list,
+%%% the rest is improper binary.
+%-spec handle_tcp_recv(Msg, State) -> {noreply, State} when
+%      Msg :: binary(),
+%      State :: state().
+%handle_tcp_recv(_Msg, State) ->
+%    {noreply, State}.
 
 -spec parse_headers(Binary, NH) -> [{Key, Value}] when
       Binary :: binary(),
@@ -199,18 +223,18 @@ parse_header_item(<<Len:16, Rest/binary>>) ->
     <<Value:Len/binary, Rest1/binary>> = Rest,
     {Value, Rest1}.
 
--spec recv_packet(Sock, Timeout) ->
+-spec recv_packet(Socket, Timeout) ->
     {ok, {Type, Id, Payload}} | {error, Reason} when
-      Sock :: gen_tcp:socket(),
+      Socket :: gen_tcp:socket(),
       Timeout :: timeout(),
       Id :: packet_id(),
       Type :: packet_type(),
       Payload :: binary(),
       Reason :: error_reason().
-recv_packet(Sock, Timeout) ->
-    case gen_tcp:recv(Sock, 16, Timeout) of
+recv_packet(Socket, Timeout) ->
+    case gen_tcp:recv(Socket, 16, Timeout) of
         {ok, <<Size:16, TypeId:8, _Reserved1:8, Id:32, _Reserved2:64>>} ->
-            case gen_tcp:recv(Sock, Size-16, Timeout) of
+            case gen_tcp:recv(Socket, Size-16, Timeout) of
                 {ok, Payload} ->
                     {ok, {type_name(TypeId), Id, Payload}};
                 {error, Reason1} ->
