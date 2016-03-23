@@ -119,7 +119,7 @@ init1(Address, Port, Options, Caller) ->
                      sofs:set([Caller])
                     )
                   ),
-    ConnectOpts = [binary, {active, false}] ++ TcpOpts,
+    ConnectOpts = [binary, {active, false}, {nodelay, true}] ++ TcpOpts,
     case gen_tcp:connect(Address, Port, ConnectOpts, Timeout) of
         {ok, Socket} ->
             State = #state{socket=Socket,
