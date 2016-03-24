@@ -15,7 +15,9 @@
           next_packet_id :: packet_id(),
           headers :: [{binary(), binary()}],
           version :: pos_integer(),  % tchannel version reported by remote
-          registrees :: [{service(), pid()}]
+          registrees :: [{service(), pid()}],
+          buffer :: binary(),  % incoming tcp buffer
+          remb :: undefined | pos_integer() % remaining bytes for current packet
 }).
 -type state() :: #state{}.
 
@@ -35,6 +37,7 @@
 
 -ifdef(TEST).
 -export([next_packet_id/1]).
+-export([tcp_recv/2]).
 -endif.
 
 %%==============================================================================
@@ -81,18 +84,20 @@ handle_cast(Request, State) ->
     {noreply, State}.
 
 
-%handle_info({tcp, S, Msg}, #state{socket=S}=State) ->
-%    handle_tcp_recv(Msg, State);
-%
-%%% closed/errored tcp socket will just inform the registrees.
-%handle_info({tcp_closed, S}, #state{socket=S, registrees=Rs}=State) ->
-%    lists:foreach(fun({_, R}) -> R ! {tchannel_closed, self()} end, Rs),
-%    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
-%    {stop, normal, State};
-%handle_info({tcp_error, S, Reason}, #state{socket=S, registrees=Rs}=State) ->
-%    lists:foreach(fun({_, R}) -> R ! {tchannel_error, self(), Reason} end, Rs),
-%    lager:debug("tcp '~p' error: '~p', terminating '~p'", [S, Reason, self()]),
-%    {stop, normal, State};
+handle_info({tcp, _, Msg}, #state{buffer=Buf, remb=RemB, registrees=R}=State) ->
+    {Packets, Buf1, RemainingBytes} = tcp_recv(Msg, {[], Buf, RemB}),
+    [handle_full_packet(Packet, R) || Packet <- Packets],
+    {noreply, State#state{buffer=Buf1, remb=RemainingBytes}};
+
+%% closed/errored tcp socket will just inform the registrees.
+handle_info({tcp_closed, S}, #state{registrees=Rs}=State) ->
+    lists:foreach(fun({_, R}) -> R ! {tchannel_closed, self()} end, Rs),
+    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
+    {stop, normal, State};
+handle_info({tcp_error, S, Reason}, #state{registrees=Rs}=State) ->
+    lists:foreach(fun({_, R}) -> R ! {tchannel_error, self(), Reason} end, Rs),
+    lager:debug("tcp '~p' error: '~p', terminating '~p'", [S, Reason, self()]),
+    {stop, normal, State};
 handle_info(Info, State) ->
     lager:warning("Unknown info: ~p", [Info]),
     {noreply, State}.
@@ -192,15 +197,48 @@ call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
     State2 = State#state{next_packet_id = next_packet_id(PacketId)},
     {gen_tcp:send(Socket, Packet), State2}.
 
-%%% @doc Handle incoming data from the socket.
-%%%
-%%% We receive a list here: first two bytes are always in a list,
-%%% the rest is improper binary.
-%-spec handle_tcp_recv(Msg, State) -> {noreply, State} when
-%      Msg :: binary(),
-%      State :: state().
-%handle_tcp_recv(_Msg, State) ->
-%    {noreply, State}.
+%% @doc Handle incoming data from the socket.
+%%
+%% First two bytes of the packet are size of the full packet, including the 2B
+%% of size. All packet (including length) is stored in the buffer.
+%% From the protocol we know the smallest possible packet is 16B.
+%%
+%% Tip for tchannel v3: subtract include size of the size packet. I.e.
+%% PacketSizeInTChannelV3 := PacketSizeInTChannelV2 - 2.
+-spec tcp_recv(Msg, {Packets, Buffer, Remaining}) ->
+    {Packets, Buffer, Remaining} when
+      Msg :: binary(),
+      Packets :: [binary()],
+      Buffer :: binary(),
+      Remaining :: undefined | pos_integer().
+%% Exit clause.
+tcp_recv(<<>>, {Acc, Buffer, RemB}) ->
+    {lists:reverse(Acc), Buffer, RemB};
+
+%% First byte only.
+tcp_recv(<<FirstByte:8>>, {Acc, <<>>, undefined}) ->
+    tcp_recv(<<>>, {Acc, <<FirstByte:8>>, undefined});
+%% Have first byte, getting the second byte and possibly more.
+tcp_recv(<<SecondByte:8, Rest/binary>>, {Acc, <<FirstByte:8>>, undefined}) ->
+    <<PacketLen:16>> = <<FirstByte:8, SecondByte:8>>,
+    tcp_recv(Rest, {Acc, <<PacketLen:16>>, PacketLen-2});
+
+%% First 2B or more.
+tcp_recv(<<PacketLength:16, Rest/binary>>, {Acc, _Buffer, undefined}) ->
+    tcp_recv(Rest, {Acc, <<PacketLength:16>>, PacketLength-2});
+
+%% Receiving not enough remaining bytes for the packet.
+tcp_recv(Msg, {Acc, Buffer, RemB}) when size(Msg) < RemB ->
+    tcp_recv(<<>>, {Acc, <<Buffer/binary, Msg/binary>>, RemB - size(Msg)});
+
+%% Enough for the packet, might have a part of the next one.
+tcp_recv(Msg, {Acc, Buf, RemB}) when size(Msg) >= RemB ->
+    <<Remaining:RemB/binary, Rest/binary>> = Msg,
+    Acc2 = [<<Buf/binary, Remaining/binary>>|Acc],
+    tcp_recv(Rest, {Acc2, <<>>, undefined}).
+
+handle_full_packet(_Packet, _Registrees) ->
+    ok.
 
 -spec parse_headers(Binary, NH) -> [{Key, Value}] when
       Binary :: binary(),
