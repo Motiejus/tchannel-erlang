@@ -42,3 +42,15 @@ prop_boundaries() ->
             big_packet_split(),
             iolist_size(Orig) =:= iolist_size(Split)
             ).
+
+prop_tcp_recv() ->
+    ?FORALL({Orig, Split},
+            big_packet_split(),
+            begin
+                {Expect, _, _} = lists:foldl(
+                  fun tchannel_conn:tcp_recv/2,
+                  {[], <<>>, undefined},
+                  Split),
+                Expect =:= Orig
+            end
+           ).
