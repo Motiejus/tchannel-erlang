@@ -1,4 +1,4 @@
-all: compile lint dialyzer test cover
+all: compile lint dialyzer test proper cover
 
 COVER = _build/test/cover/index.html
 R3_URL = https://s3.amazonaws.com/rebar3/rebar3
@@ -12,6 +12,9 @@ dialyzer:
 
 test:
 	$(REBAR3) eunit
+
+proper:
+	$(REBAR3) as proper proper --cover
 
 cover:
 	$(REBAR3) cover -v
