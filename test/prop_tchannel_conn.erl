@@ -47,10 +47,15 @@ prop_tcp_recv() ->
     ?FORALL({Orig, Split},
             big_packet_split(),
             begin
-                {Expect, _, _} = lists:foldl(
+                {Got, <<>>, undefined} = lists:foldl(
                   fun tchannel_conn:tcp_recv/2,
                   {[], <<>>, undefined},
                   Split),
-                Expect =:= Orig
+                Got2 = lists:reverse(Got),
+                ?WHENFAIL(
+                   io:format("Orig: ~p~nSplit: ~p~nGot: ~p~n",
+                             [Orig, Split, Got2]),
+                   Got2 =:= Orig
+                  )
             end
            ).

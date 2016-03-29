@@ -86,7 +86,7 @@ handle_cast(Request, State) ->
 
 handle_info({tcp, _, Msg}, #state{buffer=Buf, remb=RemB, registrees=R}=State) ->
     {Packets, Buf1, RemainingBytes} = tcp_recv(Msg, {[], Buf, RemB}),
-    [handle_full_packet(Packet, R) || Packet <- Packets],
+    [handle_full_packet(Packet, R) || Packet <- lists:reverse(Packets)],
     {noreply, State#state{buffer=Buf1, remb=RemainingBytes}};
 
 %% closed/errored tcp socket will just inform the registrees.
@@ -213,7 +213,7 @@ call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
       Remaining :: undefined | pos_integer().
 %% Exit clause.
 tcp_recv(<<>>, {Acc, Buffer, RemB}) ->
-    {lists:reverse(Acc), Buffer, RemB};
+    {Acc, Buffer, RemB};
 
 %% First byte only.
 tcp_recv(<<FirstByte:8>>, {Acc, <<>>, undefined}) ->
