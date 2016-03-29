@@ -1,5 +1,4 @@
 -module(prop_tchannel_conn).
--ifdef(PROPER).
 
 -include_lib("proper/include/proper.hrl").
 
@@ -32,8 +31,6 @@ cutoff_bin(Cutoff, BigPacket) ->
 %% @doc Converts breaking points in binary to sizes between the slices.
 cutoff(Cutoff) ->
     cutoff(lists:usort(Cutoff), []).
-cutoff([A], _) ->
-    cutoff([0, A], []);
 cutoff([A, B], Acc) ->
     lists:reverse([B - A | Acc]);
 cutoff([A, B | Rest], Acc) ->
@@ -45,5 +42,3 @@ prop_boundaries() ->
             big_packet_split(),
             iolist_size(Orig) =:= iolist_size(Split)
             ).
-
--endif.

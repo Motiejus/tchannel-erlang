@@ -14,7 +14,7 @@ test:
 	$(REBAR3) eunit
 
 proper:
-	$(REBAR3) as proper proper --cover
+	$(REBAR3) as test proper --cover
 
 cover:
 	$(REBAR3) cover -v
