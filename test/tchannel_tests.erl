@@ -4,13 +4,6 @@
 
 -define(conn(Opt), (tchannel:connect("127.0.0.1", 1, [Opt]))).
 
-internals_test_() ->
-    [
-     ?_assertEqual(0, tchannel_conn:next_packet_id(16#fffffffe)),
-     ?_assertEqual(1, tchannel_conn:next_packet_id(0)),
-     ?_assertEqual(2, tchannel_conn:next_packet_id(1))
-    ].
-
 api_test_() ->
     [
      ?_assertEqual(
@@ -33,7 +26,6 @@ tchannel_test_() ->
      fun(Apps) -> [application:stop(App) || App <- Apps] end,
      fun(_) ->
              [
-              ?_assertEqual({ok, x1}, tchannel_conn:code_change(1, x1, [])),
               {"tcp connect timeout", fun connect_timeout/0},
               {"tcp connection failure", fun connect_fail/0},
               {"failure in 'init req'", fun init_req_tcp_fail/0},
@@ -44,7 +36,6 @@ tchannel_test_() ->
              ]
      end
     }.
-
 
 %% @doc Connection timeout, mocking inet_tcp module.
 connect_timeout() ->

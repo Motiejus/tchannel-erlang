@@ -89,15 +89,15 @@ handle_info({tcp, _, Msg}, #state{buffer=Buf, remb=RemB, registrees=R}=State) ->
     [handle_full_packet(Packet, R) || Packet <- lists:reverse(Packets)],
     {noreply, State#state{buffer=Buf1, remb=RemainingBytes}};
 
-%% closed/errored tcp socket will just inform the registrees.
-handle_info({tcp_closed, S}, #state{registrees=Rs}=State) ->
-    lists:foreach(fun({_, R}) -> R ! {tchannel_closed, self()} end, Rs),
-    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
-    {stop, normal, State};
-handle_info({tcp_error, S, Reason}, #state{registrees=Rs}=State) ->
-    lists:foreach(fun({_, R}) -> R ! {tchannel_error, self(), Reason} end, Rs),
-    lager:debug("tcp '~p' error: '~p', terminating '~p'", [S, Reason, self()]),
-    {stop, normal, State};
+%%% closed/errored tcp socket will just inform the registrees.
+%handle_info({tcp_closed, S}, #state{registrees=Rs}=State) ->
+%    lists:foreach(fun({_, R}) -> R ! {tchannel_closed, self()} end, Rs),
+%    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
+%    {stop, normal, State};
+%handle_info({tcp_error, S, Reason}, #state{registrees=Rs}=State) ->
+%    lists:foreach(fun({_, R}) -> R ! {tchannel_error, self(), Reason} end, Rs),
+%    lager:debug("tcp '~p' error: '~p', terminating '~p'", [S, Reason, self()]),
+%    {stop, normal, State};
 handle_info(Info, State) ->
     lager:warning("Unknown info: ~p", [Info]),
     {noreply, State}.
@@ -200,8 +200,9 @@ call_req(State, Service, {Arg1, Arg2, Arg3}, MsgOptions) ->
 %% @doc Handle incoming data from the socket.
 %%
 %% First two bytes of the packet are size of the full packet, including the 2B
-%% of size. All packet (including length) is stored in the buffer.
-%% From the protocol we know the smallest possible packet is 16B.
+%% of size. All packet (including length) is stored in the buffer.  From the
+%% protocol we know the smallest possible packet is 16B, so we can ignore
+%% case length = 2.
 %%
 %% Tip for tchannel v3: subtract include size of the size packet. I.e.
 %% PacketSizeInTChannelV3 := PacketSizeInTChannelV2 - 2.
