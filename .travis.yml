@@ -2,9 +2,6 @@ language: erlang
 otp_release:
     - 18.2.1
     - 17.5
-os:
-    - linux
-    - osx
 
 sudo: false
 addons:
