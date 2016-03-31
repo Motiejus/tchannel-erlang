@@ -13,7 +13,12 @@ cache:
   directories:
     - _build/dialyzer
     - _build/venv
-before_cache: rm -rf _build/dialyzer/lib
+before_cache:
+    - rm -rf _build/dialyzer/lib
 
-install: make setup
-script: make
+install:
+    - make setup
+script:
+    - make
+after_success:
+    - make coveralls

@@ -24,6 +24,9 @@ cover:
 		echo "===> 100% code coverage. Keep it up!"; \
 	fi
 
+coveralls:
+	$(REBAR3) as test coveralls send
+
 lint:
 	$(REBAR3) as lint lint
 
@@ -44,4 +47,4 @@ setup: $(REBAR3)
         -s inets stop -s init stop
 	chmod +x ./rebar3
 
-.PHONY: all compile dialyzer lint test setup cover
+.PHONY: all compile dialyzer lint test setup cover coveralls
