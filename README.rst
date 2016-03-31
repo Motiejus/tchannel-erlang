@@ -1,6 +1,7 @@
 .. image:: https://api.travis-ci.org/Motiejus/tchannel-erlang.svg?branch=master
     :target: http://travis-ci.org/Motiejus/tchannel-erlang
-.. image:: https://coveralls.io/repos/github/Motiejus/tchannel-erlang/badge.svg?branch=master :target: https://coveralls.io/github/Motiejus/tchannel-erlang?branch=master
+.. image:: https://coveralls.io/repos/github/Motiejus/tchannel-erlang/badge.svg?branch=master
+    :target: https://coveralls.io/github/Motiejus/tchannel-erlang?branch=master
 
 TChannel-erlang
 ===============
