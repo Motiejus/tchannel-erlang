@@ -153,7 +153,8 @@ init_req(#state{socket=Socket}=State) ->
       State :: state(),
       Reason:: error_reason().
 init_res(#state{socket=Socket, options=Options}=State) ->
-    case recv_packet(Socket, proplists:get_value(init_timeout, Options)) of
+    InitTimeout = proplists:get_value(init_timeout, Options),
+    case recv_packet_passive(Socket, InitTimeout) of
         {ok, {init_res, _Id, Payload}} ->
             <<Version:16, NH:16, Rest/binary>> = Payload,
             Headers = parse_headers(Rest, NH),
@@ -262,7 +263,7 @@ parse_header_item(<<Len:16, Rest/binary>>) ->
     <<Value:Len/binary, Rest1/binary>> = Rest,
     {Value, Rest1}.
 
--spec recv_packet(Socket, Timeout) ->
+-spec recv_packet_passive(Socket, Timeout) ->
     {ok, {Type, Id, Payload}} | {error, Reason} when
       Socket :: gen_tcp:socket(),
       Timeout :: timeout(),
@@ -270,7 +271,7 @@ parse_header_item(<<Len:16, Rest/binary>>) ->
       Type :: packet_type(),
       Payload :: binary(),
       Reason :: error_reason().
-recv_packet(Socket, Timeout) ->
+recv_packet_passive(Socket, Timeout) ->
     case gen_tcp:recv(Socket, 16, Timeout) of
         {ok, <<Size:16, TypeId:8, _Reserved1:8, Id:32, _Reserved2:64>>} ->
             case gen_tcp:recv(Socket, Size-16, Timeout) of

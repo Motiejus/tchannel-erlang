@@ -22,7 +22,6 @@ TODO
 Things to do before any kind of announcement of this experiment:
 
 * Documentation generator.
-* Coveralls.
 
 TChannel
 ========

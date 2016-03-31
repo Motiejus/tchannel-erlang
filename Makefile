@@ -25,7 +25,7 @@ cover:
 	fi
 
 coveralls:
-	$(REBAR3) as test coveralls send
+	$(REBAR3) as coveralls coveralls send
 
 lint:
 	$(REBAR3) as lint lint
