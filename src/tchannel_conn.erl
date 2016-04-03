@@ -15,8 +15,8 @@
           next_packet_id :: packet_id(),
           headers :: [{binary(), binary()}],
           version :: pos_integer(),  % tchannel version reported by remote
-          registrees :: [{service(), pid()}],
-          buffer :: binary(),  % incoming tcp buffer
+          caller :: pid(),           % receiver of all incoming traffic
+          buffer :: binary(),        % incoming tcp buffer
           remb :: undefined | pos_integer() % remaining bytes for current packet
 }).
 -type state() :: #state{}.
@@ -84,9 +84,9 @@ handle_cast(Request, State) ->
     {noreply, State}.
 
 
-handle_info({tcp, _, Msg}, #state{buffer=Buf, remb=RemB, registrees=R}=State) ->
+handle_info({tcp, _, Msg}, #state{buffer=Buf, remb=RemB, caller=Call}=State) ->
     {Packets, Buf1, RemainingBytes} = tcp_recv(Msg, {[], Buf, RemB}),
-    [handle_full_packet(Packet, R) || Packet <- lists:reverse(Packets)],
+    [handle_full_packet(Packet, Call) || Packet <- lists:reverse(Packets)],
     {noreply, State#state{buffer=Buf1, remb=RemainingBytes}};
 
 %%% closed/errored tcp socket will just inform the registrees.
@@ -118,18 +118,12 @@ init1(Address, Port, Options, Caller) ->
     process_flag(trap_exit, true),
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
     TcpOpts = proplists:get_value(tcp_options, Options),
-    Registrees = sofs:to_external(
-                   sofs:product(
-                     sofs:set(proplists:get_value(register, Options)),
-                     sofs:set([Caller])
-                    )
-                  ),
     ConnectOpts = [binary, {active, false}, {nodelay, true}] ++ TcpOpts,
     case gen_tcp:connect(Address, Port, ConnectOpts, Timeout) of
         {ok, Socket} ->
             State = #state{socket=Socket,
                            options=Options,
-                           registrees=Registrees},
+                           caller=Caller},
             init_req(State);
         {error, timeout} ->
             {stop, connect_timeout};

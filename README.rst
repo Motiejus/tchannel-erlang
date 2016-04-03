@@ -33,7 +33,7 @@ payloads.
 Architecture
 ------------
 
-I expect to make this true in short-term::
+Process diagram::
 
     1 tchannel_sup (app supervisor)
         1 tchannel_conn_sup (supervisor)
@@ -41,60 +41,46 @@ I expect to make this true in short-term::
 
 * ``tchannel_sup`` main application supervisor.
 * ``tchannel_conn_sup`` supervisor of tchannel connections.
-* ``tchannel_conn`` reads the incoming connection and hands over stuff to
-  listeners.
+* ``tchannel_conn`` reads the incoming connection and messages the invoker.
 
 One TChannel instance maps to one ``tchannel_conn`` worker (which holds the TCP
 socket). The worker receives incoming messages from the socket, and forwards
-them to the subscribed processes. The reverse is also true.
+them to the subscribed process. The reverse is also true.
 
 This design makes the API is ``active``-only (similar to the ``active`` option
 of ``gen_tcp:connect/3``), since the data of incoming socket must be processed
-regardless of whether the callers are asking for it.
+regardless of whether the caller is asking for it. For example, we need this to
+be able to promptly respond to ``ping req``.
 
-
-API
----
-
-The sketch of API is as follows.
+TChannel Client API
+-------------------
 
 See ``tchannel:option/0`` for more options::
 
   Opts = [{tcp_connect_timeout, 500},
-          {init_timeout, 500},
-          {register, [<<"destination_service">>]}],
+          {init_timeout, 500}],
+  {ok, Channel} = tchannel:connect("127.0.0.1", 3001, Opts),
 
-``{register, Service}`` registers the caller for incoming messages from that
-service. Now, call to establish the TCP connection and initialize tchannel
-state::
+Constructing headers for ``tchannel:send/3``. See `tchannel spec` for details::
 
-  {ok, Channel} = tchannel:connect("127.0.0.1:3001", <<"sender">>, Options),
-
-Constructing headers for ``tchannel:send/3``. See tchannel spec for details::
-
-  Headers = [{as, <<"json">>},   % required
-             {cas, undefined},   % optional
-             {cn, <<"echoer">>}, % required
-             {re, undefined},    % optional
-             {se, undefined},    % optional
-             {fd, undefined},    % optional
-             {sk, undefined}     % optional
-             {rd, undefined}],   % optional
+  Headers = [{as, json}, {cn, <<"echoer">>}]
 
 Contstructing outgoing message::
 
   MsgOpts = [{headers, Headers},    % required, see above
-             {ttl, 1000},           % optional
-             {tracing, undefined}], % not supported
+             {ttl, 1000}].          % not supported
 
 Sending the actual message::
 
-  tchannel:send(TChannel, DestService, Arg1, Arg2, Arg3, MsgOpts),
+  Args = {Arg1, Arg2, Arg3},
+  tchannel:send(TChannel, DestService, Args, MsgOpts),
 
 Wait for the reply::
 
   receive
-    {tchannel, TChannel, {Id, Code, Tracing, Headers, Arg1, Arg2, Arg3}} ->
+    {call_req, TChannel, {Id, TTL, Tracing, Service, Headers, Args}} ->
+        ...;
+    {call_res, TChannel, {Id, Code, Tracing, Headers, Args}} ->
         ...;
     {tchannel_closed, TChannel} ->
         ...;
@@ -111,9 +97,8 @@ TODO
 ----
 
 The API and implementation are minimalistic, because the intention is to
-implement as less as possible without overthinking. It is better to make big
-changes when the codebase is small and limited, rather than big and complete.
-Given you went thus far, we lack:
+implement as less as possible without overthinking. Given you went thus far, we
+lack:
 
 1. The API for creating a channel, listening for it, terminating it is strange
    and incomplete. It will very likely be changed in the future.
@@ -121,3 +106,7 @@ Given you went thus far, we lack:
 3. In Erlang, a TChannel instance maps 1:1 to the underlying TCP connection. It
    is not true in Go/Node APIs, but is not mandated by the protocol. We'll know
    if we need to do that after actually using it for some time.
+4. The creator of the channel "subscribes" to all the incoming messages
+   automatically. There might be an intention to register per-service listeners.
+
+.. _`tchannel spec`: http://tchannel.readthedocs.org/en/latest/protocol/

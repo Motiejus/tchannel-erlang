@@ -32,7 +32,7 @@ tchannel_test_() ->
               {"failure to send first packet", fun first_send_fail/0},
               {"'init res' fail after first packet",
                fun init_res_after_first_packet_fail/0},
-              integration_()
+               integration_()
              ]
      end
     }.
@@ -101,14 +101,16 @@ gen_server_api({Host, Port}) ->
     tchannel:close(T).
 
 call({Host, Port}) ->
-    {ok, T} = tchannel:connect(Host, Port, [{register, [<<"tchannel_unit">>]}]),
-    Headers = [
-               {as, json},
-               {cn, tchannel_unit},
-               {fd, <<"echo-services">>}
-              ],
-    Opts = [{headers, Headers}],
-    ok = tchannel:send(T, <<"echo-server">>, <<"/echo">>, <<>>, <<"1">>, Opts).
+    {ok, T} = tchannel:connect(Host, Port),
+    Opts = [{headers, [{as, json}, {cn, <<"tchannel-erlang-tests">>}]}],
+    ok = tchannel:send(T, <<"echo-server">>, <<"/echo">>, <<>>, <<"1">>, Opts),
+    %receive
+    %    X ->
+    %        io:format(user, "ok, received~n", [])
+    %after 1000 ->
+    %          %?assert(false)
+    %end.
+    ok.
 
 %%==============================================================================
 %% Utilities

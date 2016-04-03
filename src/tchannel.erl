@@ -93,8 +93,6 @@ check_options([{init_timeout, T}|Options]) when is_integer(T) ->
     check_options(Options);
 check_options([{tcp_options, L}|Options]) when is_list(L) ->
     check_options(Options);
-check_options([{register, S}|Options]) when is_list(S) ->
-    check_options(Options);
 check_options([Opt|_]) ->
     {error, {option, Opt}}.
 
@@ -105,6 +103,5 @@ merge_options(Options) ->
     [
      F(tcp_connect_timeout, ?DEFAULT_TCP_CONNECT_TIMEOUT),
      F(init_timeout, ?DEFAULT_INIT_TIMEOUT),
-     F(tcp_options, []),
-     F(register, [])
+     F(tcp_options, [])
     ].

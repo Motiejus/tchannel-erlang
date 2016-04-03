@@ -17,8 +17,7 @@
 -type connect_option() ::
     {tcp_connect_timeout, timeout()}          |
     {init_timeout, timeout()}                 |
-    {tcp_options, [gen_tcp:connect_option()]} | % passed to gen_tcp:connect
-    {register, service() | [service()]}.        % register incoming msgs for
+    {tcp_options, [gen_tcp:connect_option()]}.  % passed to gen_tcp:connect
 
 -type hostport() :: binary().
 -type transport_header() ::
