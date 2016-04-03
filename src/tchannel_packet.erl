@@ -5,6 +5,7 @@
 
 -export([construct_init_req/0,
          parse_init_res/1,
+         stream_recv/2,
          construct_call_req/5]).
 
 -include("types.hrl").
@@ -74,6 +75,46 @@ construct_call_req(PacketId, TTL, Service, Headers, {Arg1, Arg2, Arg3}) ->
     Packet = construct_packet(call_req, PacketId, Payload),
     {Packet, next_packet_id(PacketId)}.
 
+%% @doc Handle incoming parts of the stream.
+%%
+%% First two bytes of the packet are size of the full packet, including the 2B
+%% of size. All packet (including length) is stored in the buffer.  From the
+%% protocol we know the smallest possible packet is 16B, so we can ignore
+%% case length = 2.
+%%
+%% Tip for tchannel v3: subtract include size of the size packet. I.e.
+%% PacketSizeInTChannelV3 := PacketSizeInTChannelV2 - 2.
+-spec stream_recv(Msg, {Packets, Buffer, Remaining}) ->
+    {Packets, Buffer, Remaining} when
+      Msg :: binary(),
+      Packets :: [binary()],
+      Buffer :: binary(),
+      Remaining :: undefined | pos_integer().
+%% Exit clause.
+stream_recv(<<>>, {Acc, Buffer, RemB}) ->
+    {Acc, Buffer, RemB};
+
+%% First byte only.
+stream_recv(<<FirstByte:8>>, {Acc, <<>>, undefined}) ->
+    stream_recv(<<>>, {Acc, <<FirstByte:8>>, undefined});
+%% Have first byte, getting the second byte and possibly more.
+stream_recv(<<SecondByte:8, Rest/binary>>, {Acc, <<FirstByte:8>>, undefined}) ->
+    <<PacketLen:16>> = <<FirstByte:8, SecondByte:8>>,
+    stream_recv(Rest, {Acc, <<PacketLen:16>>, PacketLen-2});
+
+%% First 2B or more.
+stream_recv(<<PacketLength:16, Rest/binary>>, {Acc, _Buffer, undefined}) ->
+    stream_recv(Rest, {Acc, <<PacketLength:16>>, PacketLength-2});
+
+%% Receiving not enough remaining bytes for the packet.
+stream_recv(Msg, {Acc, Buffer, RemB}) when size(Msg) < RemB ->
+    stream_recv(<<>>, {Acc, <<Buffer/binary, Msg/binary>>, RemB - size(Msg)});
+
+%% Enough for the packet, might have a part of the next one.
+stream_recv(Msg, {Acc, Buf, RemB}) when size(Msg) >= RemB ->
+    <<Remaining:RemB/binary, Rest/binary>> = Msg,
+    Acc2 = [<<Buf/binary, Remaining/binary>>|Acc],
+    stream_recv(Rest, {Acc2, <<>>, undefined}).
 
 %%=============================================================================
 %% Internal helpers

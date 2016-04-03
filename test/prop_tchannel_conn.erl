@@ -7,14 +7,14 @@
 %%
 %% 1. Construct many valid length + payload packets. Merge them.
 %% 2. Split the result to arbitrary chunks.
-%% 3. Pass the list through tchannel_conn:tcp_recv/2 and verify they were
+%% 3. Pass the list through tchannel_conn:stream_recv/2 and verify they were
 %%    properly reconstructed.
-prop_tcp_recv() ->
+prop_stream_recv() ->
     ?FORALL({Orig, Split},
             big_packet_split(),
             begin
                 {Got, <<>>, undefined} = lists:foldl(
-                  fun tchannel_conn:tcp_recv/2,
+                  fun tchannel_packet:stream_recv/2,
                   {[], <<>>, undefined},
                   Split),
                 Orig =:= lists:reverse(Got)

@@ -36,7 +36,6 @@
 -export([start_link/1]).
 
 -ifdef(TEST).
--export([tcp_recv/2]).
 -endif.
 
 %%==============================================================================
@@ -84,7 +83,7 @@ handle_cast(Request, State) ->
 
 
 handle_info({tcp, _, Msg}, #state{socket=Sock, buffer=Buf, remb=RemB}=State) ->
-    {Pkts, Buf1, Remb1} = tcp_recv(Msg, {[], Buf, RemB}),
+    {Pkts, Buf1, Remb1} = tchannel_packet:stream_recv(Msg, {[], Buf, RemB}),
     [handle_full_packet(Pkt, State#state.caller) || Pkt <- lists:reverse(Pkts)],
     inet:setopts(Sock, [{active, once}]),
     {noreply, State#state{buffer=Buf1, remb=Remb1}};
@@ -176,46 +175,6 @@ call_req(State, Service, Args, MsgOptions) ->
     State2 = State#state{next_packet_id = PacketId2},
     {gen_tcp:send(Socket, Packet), State2}.
 
-%% @doc Handle incoming data from the socket.
-%%
-%% First two bytes of the packet are size of the full packet, including the 2B
-%% of size. All packet (including length) is stored in the buffer.  From the
-%% protocol we know the smallest possible packet is 16B, so we can ignore
-%% case length = 2.
-%%
-%% Tip for tchannel v3: subtract include size of the size packet. I.e.
-%% PacketSizeInTChannelV3 := PacketSizeInTChannelV2 - 2.
--spec tcp_recv(Msg, {Packets, Buffer, Remaining}) ->
-    {Packets, Buffer, Remaining} when
-      Msg :: binary(),
-      Packets :: [binary()],
-      Buffer :: binary(),
-      Remaining :: undefined | pos_integer().
-%% Exit clause.
-tcp_recv(<<>>, {Acc, Buffer, RemB}) ->
-    {Acc, Buffer, RemB};
-
-%% First byte only.
-tcp_recv(<<FirstByte:8>>, {Acc, <<>>, undefined}) ->
-    tcp_recv(<<>>, {Acc, <<FirstByte:8>>, undefined});
-%% Have first byte, getting the second byte and possibly more.
-tcp_recv(<<SecondByte:8, Rest/binary>>, {Acc, <<FirstByte:8>>, undefined}) ->
-    <<PacketLen:16>> = <<FirstByte:8, SecondByte:8>>,
-    tcp_recv(Rest, {Acc, <<PacketLen:16>>, PacketLen-2});
-
-%% First 2B or more.
-tcp_recv(<<PacketLength:16, Rest/binary>>, {Acc, _Buffer, undefined}) ->
-    tcp_recv(Rest, {Acc, <<PacketLength:16>>, PacketLength-2});
-
-%% Receiving not enough remaining bytes for the packet.
-tcp_recv(Msg, {Acc, Buffer, RemB}) when size(Msg) < RemB ->
-    tcp_recv(<<>>, {Acc, <<Buffer/binary, Msg/binary>>, RemB - size(Msg)});
-
-%% Enough for the packet, might have a part of the next one.
-tcp_recv(Msg, {Acc, Buf, RemB}) when size(Msg) >= RemB ->
-    <<Remaining:RemB/binary, Rest/binary>> = Msg,
-    Acc2 = [<<Buf/binary, Remaining/binary>>|Acc],
-    tcp_recv(Rest, {Acc2, <<>>, undefined}).
 
 handle_full_packet(_Packet, _Registrees) ->
     ok.
