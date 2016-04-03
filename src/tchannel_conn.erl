@@ -84,10 +84,11 @@ handle_cast(Request, State) ->
     {noreply, State}.
 
 
-handle_info({tcp, _, Msg}, #state{buffer=Buf, remb=RemB, caller=Call}=State) ->
-    {Packets, Buf1, RemainingBytes} = tcp_recv(Msg, {[], Buf, RemB}),
-    [handle_full_packet(Packet, Call) || Packet <- lists:reverse(Packets)],
-    {noreply, State#state{buffer=Buf1, remb=RemainingBytes}};
+handle_info({tcp, _, Msg}, #state{socket=Sock, buffer=Buf, remb=RemB}=State) ->
+    {Pkts, Buf1, Remb1} = tcp_recv(Msg, {[], Buf, RemB}),
+    [handle_full_packet(Pkt, State#state.caller) || Pkt <- lists:reverse(Pkts)],
+    inet:setopts(Sock, [{active, once}]),
+    {noreply, State#state{buffer=Buf1, remb=Remb1}};
 
 %%% closed/errored tcp socket will just inform the registrees.
 %handle_info({tcp_closed, S}, #state{registrees=Rs}=State) ->
