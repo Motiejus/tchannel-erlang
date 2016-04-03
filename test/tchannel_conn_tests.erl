@@ -4,9 +4,6 @@
 
 internals_test_() ->
     [
-     ?_assertEqual(0, tchannel_conn:next_packet_id(16#fffffffe)),
-     ?_assertEqual(1, tchannel_conn:next_packet_id(0)),
-     ?_assertEqual(2, tchannel_conn:next_packet_id(1)),
      ?_assertEqual({ok, x1}, tchannel_conn:code_change(1, x1, []))
     ].
 
