@@ -2,18 +2,51 @@
 %%%
 -module(tchannel_packet).
 
+%%% Non-pure
+-export([recv_packet_passive/2]).
 
+%% Pure
 -export([construct_init_req/0,
          parse_init_res/1,
          stream_recv/2,
          construct_call_req/5]).
 
--include("types.hrl").
--include("consts.hrl").
-
 -ifdef(TEST).
 -export([next_packet_id/1]).
 -endif.
+
+-include("types.hrl").
+-include("consts.hrl").
+
+%%=============================================================================
+%% Non-pure functions
+%%=============================================================================
+
+%%% @doc Receive a tchannel packet in passive mode. Non-pure.
+-spec recv_packet_passive(Socket, Timeout) ->
+    {ok, {Type, Id, Payload}} | {error, Reason} when
+      Socket :: gen_tcp:socket(),
+      Timeout :: timeout(),
+      Id :: packet_id(),
+      Type :: packet_type(),
+      Payload :: binary(),
+      Reason :: error_reason().
+recv_packet_passive(Socket, Timeout) ->
+    case gen_tcp:recv(Socket, 16, Timeout) of
+        {ok, <<Size:16, TypeId:8, _Reserved1:8, Id:32, _Reserved2:64>>} ->
+            case gen_tcp:recv(Socket, Size-16, Timeout) of
+                {ok, Payload} ->
+                    {ok, {type_name(TypeId), Id, Payload}};
+                {error, Reason1} ->
+                    {error, Reason1}
+            end;
+        {error, Reason2} ->
+            {error, Reason2}
+    end.
+
+%%=============================================================================
+%% Pure functions
+%%=============================================================================
 
 %% @doc Construct packet for init_req
 -spec construct_init_req() -> Packet when Packet :: iodata().
@@ -197,3 +230,16 @@ parse_headers(Binary, NH) ->
 parse_header_item(<<Len:16, Rest/binary>>) ->
     <<Value:Len/binary, Rest1/binary>> = Rest,
     {Value, Rest1}.
+
+-spec type_name(packet_type_no()) -> packet_type().
+%type_name(16#01) -> init_req;
+type_name(16#02) -> init_res.
+%type_name(16#03) -> call_req;
+%type_name(16#04) -> call_res;
+%type_name(16#13) -> call_req_continue;
+%type_name(16#14) -> call_res_continue;
+%type_name(16#c0) -> cancel;
+%type_name(16#c1) -> claim;
+%type_name(16#d0) -> ping_req;
+%type_name(16#d1) -> ping_res;
+%type_name(16#ff) -> error.

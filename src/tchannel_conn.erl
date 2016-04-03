@@ -145,7 +145,7 @@ init_req(#state{socket=Socket}=State) ->
       Reason:: error_reason().
 init_res(#state{socket=Socket, options=Options}=State) ->
     InitTimeout = proplists:get_value(init_timeout, Options),
-    case recv_packet_passive(Socket, InitTimeout) of
+    case tchannel_packet:recv_packet_passive(Socket, InitTimeout) of
         {ok, {init_res, _Id, Payload}} ->
             {Version, Headers} = tchannel_packet:parse_init_res(Payload),
             State2 = State#state{
@@ -178,38 +178,3 @@ call_req(State, Service, Args, MsgOptions) ->
 
 handle_full_packet(_Packet, _Registrees) ->
     ok.
-
-
--spec recv_packet_passive(Socket, Timeout) ->
-    {ok, {Type, Id, Payload}} | {error, Reason} when
-      Socket :: gen_tcp:socket(),
-      Timeout :: timeout(),
-      Id :: packet_id(),
-      Type :: packet_type(),
-      Payload :: binary(),
-      Reason :: error_reason().
-recv_packet_passive(Socket, Timeout) ->
-    case gen_tcp:recv(Socket, 16, Timeout) of
-        {ok, <<Size:16, TypeId:8, _Reserved1:8, Id:32, _Reserved2:64>>} ->
-            case gen_tcp:recv(Socket, Size-16, Timeout) of
-                {ok, Payload} ->
-                    {ok, {type_name(TypeId), Id, Payload}};
-                {error, Reason1} ->
-                    {error, Reason1}
-            end;
-        {error, Reason2} ->
-            {error, Reason2}
-    end.
-
--spec type_name(packet_type_no()) -> packet_type().
-%type_name(16#01) -> init_req;
-type_name(16#02) -> init_res.
-%type_name(16#03) -> call_req;
-%type_name(16#04) -> call_res;
-%type_name(16#13) -> call_req_continue;
-%type_name(16#14) -> call_res_continue;
-%type_name(16#c0) -> cancel;
-%type_name(16#c1) -> claim;
-%type_name(16#d0) -> ping_req;
-%type_name(16#d1) -> ping_res;
-%type_name(16#ff) -> error.
