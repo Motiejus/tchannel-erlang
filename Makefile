@@ -25,7 +25,7 @@ cover:
 	fi
 
 coveralls:
-	DEBUG=1 $(REBAR3) as coveralls coveralls send
+	DEBUG=1 $(REBAR3) as test coveralls send
 
 lint:
 	$(REBAR3) as lint lint
