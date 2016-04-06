@@ -173,5 +173,10 @@ call_req(State, Service, Args, MsgOptions) ->
     {gen_tcp:send(Socket, Packet), State2}.
 
 
-handle_full_packet(_Packet, _Registrees) ->
-    ok.
+handle_full_packet(Packet, Caller) ->
+    case tchannel_packet:parse_full_packet(Packet) of
+        {call_res, Id, Payload} ->
+            {0, Code, Tracing, Headers, _Checksum, Args} =
+            tchannel_packet:parse_call_res(Payload),
+            Caller ! {call_res, self(), {Id, Code, Tracing, Headers, Args}}
+    end.

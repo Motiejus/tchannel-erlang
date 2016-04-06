@@ -8,6 +8,8 @@
 %% Pure
 -export([construct_init_req/0,
          parse_init_res/1,
+         parse_call_res/1,
+         parse_full_packet/1,
          stream_recv/2,
          construct_call_req/5]).
 
@@ -77,8 +79,8 @@ construct_init_req() ->
       Version :: pos_integer(),
       Headers :: [{binary(), binary()}].
 parse_init_res(Payload) ->
-    <<Version:16, NH:16, Rest/binary>> = Payload,
-    Headers = parse_headers(Rest, NH),
+    <<Version:16, Rest/binary>> = Payload,
+    {Headers, <<>>} = parse_headers(16, Rest),
     {Version, Headers}.
 
 -spec construct_call_req(PacketId, TTL, Service, Headers, Args) ->
@@ -210,32 +212,63 @@ type_num(call_req) ->                16#03.
 bin(X) when is_atom(X) -> atom_to_binary(X, utf8);
 bin(X) when is_binary(X) -> X.
 
--spec parse_headers(Binary, NH) -> [{Key, Value}] when
+%% @doc Given a binary and header size size (bits), parse them and return rest.
+-spec parse_headers(Bits, Binary) -> {Headers, Rest} when
+      Bits :: 8 | 16,
       Binary :: binary(),
-      NH :: pos_integer(),
-      Key :: binary(),
-      Value :: binary().
-parse_headers(Binary, NH) ->
-    {Headers, <<>>} = lists:mapfoldl(
-                        fun(_, Rest1) ->
-                                {Key, Rest2} = parse_header_item(Rest1),
-                                {Val, Rest3} = parse_header_item(Rest2),
-                                {{Key, Val}, Rest3}
-                        end,
-                        Binary,
-                        lists:seq(1, NH)
-                       ),
-    Headers.
+      Rest :: binary(), %% remaining binary after parsing header
+      Headers :: [{binary(), binary()}].
+parse_headers(Bits, Binary) ->
+    <<NH:Bits, Rest/binary>> = Binary,
+    lists:mapfoldl(
+      fun(_, Rest1) ->
+              {Key, Rest2} = parse_sized_item(Bits, Rest1),
+              {Val, Rest3} = parse_sized_item(Bits, Rest2),
+              {{Key, Val}, Rest3}
+      end,
+      Rest,
+      lists:seq(1, NH)
+     ).
 
-parse_header_item(<<Len:16, Rest/binary>>) ->
+parse_sized_item(Bits, Payload) ->
+    <<Len:Bits, Rest/binary>> = Payload,
     <<Value:Len/binary, Rest1/binary>> = Rest,
     {Value, Rest1}.
 
+%% @doc Parse an incoming packet.
+-spec parse_full_packet(Packet) -> {Type, Id, Payload} when
+      Packet :: binary(),
+      Type :: packet_type(),
+      Id :: packet_id(),
+      Payload :: binary().
+parse_full_packet(<<_Len:16, Type:8, _:8, Id:32, _:64, Payload/binary>>) ->
+    {type_name(Type), Id, Payload}.
+
+-spec parse_call_res(Payload) ->
+    {Flags, Code, Tracing, Headers, Checksum, Args} when
+      Payload :: binary(),
+      Flags :: 0, % | 1 | 2,
+      Code :: 0 | 1, % ok | error
+      Tracing :: undefined, % not supported
+      Headers :: [{binary(), binary()}],
+      Checksum :: undefined,
+      Args :: {binary(), binary(), binary()}.
+parse_call_res(<<0:8, Code:8, _Tracing:200, Rest/binary>>) ->
+    {Headers, Rest1} = parse_headers(8, Rest),
+    Rest2 = case Rest1 of
+                <<0:8, Rest1a/binary>> -> Rest1a
+                %<<_:40, Rest1a/binary>> -> Rest1a
+            end,
+    {Arg1, Rest3} = parse_sized_item(16, Rest2),
+    {Arg2, Rest4} = parse_sized_item(16, Rest3),
+    {Arg3, <<>>}  = parse_sized_item(16, Rest4),
+    {0, Code, undefined, Headers, undefined, {Arg1, Arg2, Arg3}}.
+
 -spec type_name(packet_type_no()) -> packet_type().
 %type_name(16#01) -> init_req;
-type_name(16#02) -> init_res.
+type_name(16#02) -> init_res;
 %type_name(16#03) -> call_req;
-%type_name(16#04) -> call_res;
+type_name(16#04) -> call_res.
 %type_name(16#13) -> call_req_continue;
 %type_name(16#14) -> call_res_continue;
 %type_name(16#c0) -> cancel;
