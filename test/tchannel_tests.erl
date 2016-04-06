@@ -104,13 +104,12 @@ call({Host, Port}) ->
     {ok, T} = tchannel:connect(Host, Port),
     Opts = [{headers, [{as, json}, {cn, <<"tchannel-erlang-tests">>}]}],
     ok = tchannel:send(T, <<"echo-server">>, <<"/echo">>, <<>>, <<"1">>, Opts),
-    %receive
-    %    X ->
-    %        io:format(user, "ok, received~n", [])
-    %after 1000 ->
-    %          %?assert(false)
-    %end.
-    ok.
+    receive
+        {call_res, T, {_, 0, _, _, {_, _, <<"1">>}}} ->
+            ok
+    after 1000 ->
+              ?assert(false)
+    end.
 
 %%==============================================================================
 %% Utilities
