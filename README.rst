@@ -73,7 +73,7 @@ Contstructing outgoing message::
 Sending the actual message::
 
   Args = {Arg1, Arg2, Arg3},
-  tchannel:send(TChannel, DestService, Args, MsgOpts),
+  {ok, Id} = tchannel:send(TChannel, DestService, Args, MsgOpts),
 
 Wait for the reply::
 

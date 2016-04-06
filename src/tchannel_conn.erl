@@ -35,6 +35,10 @@
 %% API
 -export([start_link/1]).
 
+-ifdef(TEST).
+-export([on_ok/2]).
+-endif.
+
 %%==============================================================================
 %% gen_server API
 %%==============================================================================
@@ -170,8 +174,12 @@ call_req(State, Service, Args, MsgOptions) ->
     {Packet, PacketId2} = tchannel_packet:construct_call_req(
                             PacketId, TTL, Service, Headers, Args),
     State2 = State#state{next_packet_id = PacketId2},
-    {gen_tcp:send(Socket, Packet), State2}.
+    Ret = on_ok(gen_tcp:send(Socket, Packet), PacketId),
+    {Ret, State2}.
 
+-spec on_ok(ok | {error, Reason}, OnOk) -> {ok, OnOk} | {error, Reason}.
+on_ok(ok, OnOk) -> {ok, OnOk};
+on_ok({error, Reason}, _OnOk) -> {error, Reason}.
 
 handle_full_packet(Packet, Caller) ->
     case tchannel_packet:parse_full_packet(Packet) of

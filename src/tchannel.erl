@@ -18,7 +18,7 @@
 -export([connect/2]).
 -export([connect/3]).
 -export([headers/1]).
--export([send/6]).
+-export([send/4]).
 
 %% @doc Connect to a tchannel endpoint with default options.
 -spec connect(Address, Port) -> {ok, Channel} | {error, Reason} when
@@ -45,17 +45,16 @@ connect(Address, Port) ->
 connect(Address, Port, Options) ->
     connect1(Address, Port, Options).
 
--spec send(TChannel, Service, Arg1, Arg2, Arg3, MsgOpts) ->
-    ok | {error, Error} when
+-spec send(TChannel, Service, Args, MsgOpts) ->
+    {ok, Id} | {error, Error} when
       TChannel :: tchannel(),
       Service :: service(),
-      Arg1 :: iodata(),
-      Arg2 :: iodata(),
-      Arg3 :: iodata(),
+      Args :: {iodata(), iodata(), iodata()},
       MsgOpts :: [msg_option()],
+      Id :: packet_id(),
       Error :: inet:posix() | closed.
-send(TChannel, Service, Arg1, Arg2, Arg3, MsgOpts) ->
-    gen_server:call(TChannel, {call_req, Service, {Arg1, Arg2, Arg3}, MsgOpts}).
+send(TChannel, Service, Args, MsgOpts) ->
+    gen_server:call(TChannel, {call_req, Service, Args, MsgOpts}).
 
 %% @doc List of headers returned by remote party on 'init res'.
 -spec headers(TChannel) -> [{HeaderKey, HeaderVal}] when

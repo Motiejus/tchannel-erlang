@@ -103,12 +103,11 @@ gen_server_api({Host, Port}) ->
 call({Host, Port}) ->
     {ok, T} = tchannel:connect(Host, Port),
     Opts = [{headers, [{as, json}, {cn, <<"tchannel-erlang-tests">>}]}],
-    ok = tchannel:send(T, <<"echo-server">>, <<"/echo">>, <<>>, <<"1">>, Opts),
+    Args = {<<"/echo">>, <<>>, <<"1">>},
+    {ok, Id} = tchannel:send(T, <<"echo-server">>, Args, Opts),
     receive
-        {call_res, T, {_, 0, _, _, {_, _, <<"1">>}}} ->
+        {call_res, T, {Id, 0, _, _, {_, _, <<"1">>}}} ->
             ok
-    after 1000 ->
-              ?assert(false)
     end.
 
 %%==============================================================================
