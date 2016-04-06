@@ -1,4 +1,4 @@
-all: compile lint dialyzer test proper cover
+all: compile lint dialyzer test cover
 
 COVER = _build/test/cover/index.html
 R3_URL = https://s3.amazonaws.com/rebar3/rebar3
@@ -10,10 +10,12 @@ compile:
 dialyzer:
 	$(REBAR3) as dialyzer dialyzer
 
-test:
-	$(REBAR3) eunit
+test: test-unit test-proper
 
-proper:
+test-unit:
+	$(REBAR3) eunit --cover
+
+test-proper:
 	$(REBAR3) as test proper --cover
 
 cover:
@@ -47,4 +49,5 @@ setup: $(REBAR3)
         -s inets stop -s init stop
 	chmod +x ./rebar3
 
-.PHONY: all compile dialyzer lint test setup cover coveralls
+.PHONY: all compile dialyzer lint setup cover coveralls
+.PHONY: test test-unit test-proper

@@ -31,8 +31,7 @@ tchannel_test_() ->
               {"failure in 'init req'", fun init_req_tcp_fail/0},
               {"failure to send first packet", fun first_send_fail/0},
               {"'init res' fail after first packet",
-               fun init_res_after_first_packet_fail/0},
-               integration_()
+               fun init_res_after_first_packet_fail/0}
              ]
      end
     }.
@@ -64,79 +63,9 @@ init_res_after_first_packet_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_first_16b_only/1),
     ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port)).
 
-%% @doc Integration test with tchannel_test.py
-integration_() ->
-    {setup,
-     fun start_tchannel_echo/0,
-     fun({_Port, {Host, Port}}) ->
-             [
-              {"test connect", ?_test(connect({Host, Port}))},
-              {"test connect with opts", ?_test(connect_with_opts({Host, Port}))},
-              {"gen_server nocrash", ?_test(gen_server_api({Host, Port}))},
-              {"test call", ?_test(call({Host, Port}))}
-             ]
-     end
-    }.
-
-connect({Host, Port}) ->
-    {ok, T} = tchannel:connect(Host, Port),
-    H = tchannel:headers(T),
-    ?assertEqual(<<"python">>, proplists:get_value(<<"tchannel_language">>, H)),
-    tchannel:close(T).
-
-%% @doc Connect with options
-connect_with_opts({Host, Port}) ->
-    Opts = [{tcp_connect_timeout, 500}, {init_timeout, 500}],
-    {ok, T} = tchannel:connect(Host, Port, Opts),
-    tchannel:close(T).
-
-%% @doc Unknown messages don't crash the underlying gen_server
-gen_server_api({Host, Port}) ->
-    {ok, T} = tchannel:connect(Host, Port),
-    ?assertEqual({error, invalid_request}, gen_server:call(T, invalid)),
-    gen_server:cast(T, invalid),
-    T ! invalid,
-    % Check that server is responding ...
-    ?assertMatch([_|_], tchannel:headers(T)),
-    tchannel:close(T).
-
-call({Host, Port}) ->
-    {ok, T} = tchannel:connect(Host, Port),
-    Opts = [{headers, [{as, json}, {cn, <<"tchannel-erlang-tests">>}]}],
-    Args = {<<"/echo">>, <<>>, <<"1">>},
-    {ok, Id} = tchannel:send(T, <<"echo-server">>, Args, Opts),
-    receive
-        {call_res, T, {Id, 0, _, _, {_, _, <<"1">>}}} ->
-            ok
-    end.
-
 %%==============================================================================
 %% Utilities
 %%==============================================================================
-
-start_server_get_port(Fun) ->
-    Self = self(),
-    spawn(fun() -> Fun(Self) end),
-    receive
-        {port, Port1} ->
-            Port1
-    end.
-
-%% @doc Starts tchannel json echo service. Tells where it's listening on.
--spec start_tchannel_echo() -> {Port, HostPort} when
-      Port :: port(),
-      HostPort :: string().
-start_tchannel_echo() ->
-    {ok, Dir} = file:get_cwd(),
-    Python = filename:join([Dir, "_build", "venv", "bin", "python"]),
-    Server = filename:join([Dir, "test", "tchannel_echo.py"]),
-    Port = open_port({spawn_executable, Python}, [{args, [Server]}]),
-    HostPort = receive
-        {Port, {data, Data}} ->
-            string:strip(Data, both, $\n)
-    end,
-    [Host, TcpPort] = string:tokens(HostPort, ":"),
-    {Port, {Host, list_to_integer(TcpPort)}}.
 
 %% @doc Create a TCP socket, waits for a connection, and closes the socket.
 %%
@@ -148,6 +77,14 @@ gen_tcp_server_close(Caller) ->
     {ok, Sock} = gen_tcp:accept(LSock),
     gen_tcp:close(Sock),
     gen_tcp:close(LSock).
+
+start_server_get_port(Fun) ->
+    Self = self(),
+    spawn(fun() -> Fun(Self) end),
+    receive
+        {port, Port1} ->
+            Port1
+    end.
 
 %% @doc Create a TCP socket, wait for a connection, send first 16b valid, close.
 gen_tcp_server_first_16b_only(Caller) ->
