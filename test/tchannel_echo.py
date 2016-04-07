@@ -16,6 +16,11 @@ def close_callback(_data):
 def handler(request):
     return request.body
 
+@tchannel.json.register('/exit')
+def handler(request):
+    tornado.ioloop.IOLoop.current().close()
+    sys.exit()
+
 if __name__ == '__main__':
     tchannel.listen()
     stdin = tornado.iostream.PipeIOStream(sys.stdin.fileno())

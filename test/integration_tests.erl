@@ -11,10 +11,11 @@ integration_test_() ->
      fun({Apps, _, _}) -> [application:stop(App) || App <- Apps] end,
      fun({_, _, HostPort}) ->
              [
-              {"test connect", ?_test(connect(HostPort))},
-              {"test connect with opts", ?_test(connect_with_opts(HostPort))},
+              {"connect", ?_test(connect(HostPort))},
+              {"connect with opts", ?_test(connect_with_opts(HostPort))},
               {"gen_server nocrash", ?_test(gen_server_api(HostPort))},
-              {"test call", ?_test(call(HostPort))}
+              {"call", ?_test(call(HostPort))},
+              {"tchannel_closed", ?_test(closed(HostPort))}
              ]
      end
     }.
@@ -48,6 +49,16 @@ call({Host, Port}) ->
     {ok, Id} = tchannel:send(T, <<"echo-server">>, Args, Opts),
     receive
         {call_res, T, {Id, 0, _, _, {_, _, <<"1">>}}} ->
+            ok
+    end.
+
+closed({Host, Port}) ->
+    {ok, T} = tchannel:connect(Host, Port),
+    Opts = [{headers, [{as, json}, {cn, <<"tchannel-erlang-tests">>}]}],
+    Args = {<<"/exit">>, <<>>, <<"1">>},
+    {ok, _} = tchannel:send(T, <<"echo-server">>, Args, Opts),
+    receive
+        {tchannel_closed, T} ->
             ok
     end.
 

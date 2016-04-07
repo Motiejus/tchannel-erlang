@@ -90,10 +90,10 @@ handle_info({tcp, _, Msg}, #state{socket=Sock, buffer=Buf, remb=RemB}=State) ->
     {noreply, State#state{buffer=Buf1, remb=Remb1}};
 
 %%% closed/errored tcp socket will just inform the registrees.
-%handle_info({tcp_closed, S}, #state{registrees=Rs}=State) ->
-%    lists:foreach(fun({_, R}) -> R ! {tchannel_closed, self()} end, Rs),
-%    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
-%    {stop, normal, State};
+handle_info({tcp_closed, S}, #state{caller=Caller}=State) ->
+    Caller ! {tchannel_closed, self()},
+    lager:debug("tcp '~p' closed, terminating '~p'", [S, self()]),
+    {stop, normal, State};
 %handle_info({tcp_error, S, Reason}, #state{registrees=Rs}=State) ->
 %    lists:foreach(fun({_, R}) -> R ! {tchannel_error, self(), Reason} end, Rs),
 %    lager:debug("tcp '~p' error: '~p', terminating '~p'", [S, Reason, self()]),
