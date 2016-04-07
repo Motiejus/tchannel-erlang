@@ -57,7 +57,9 @@ TChannel Client API
 
 See ``tchannel:option/0`` for more options::
 
-  Opts = [{tcp_connect_timeout, 500},
+  Opts = [{host_port, <<"0.0.0.0:0">>},      % where can I be reached
+          {process_name, <<"ringpoprop">>},  % who am I
+          {tcp_connect_timeout, 500},
           {init_timeout, 500}],
   {ok, Channel} = tchannel:connect("127.0.0.1", 3001, Opts),
 
@@ -108,5 +110,7 @@ lack:
    if we need to do that after actually using it for some time.
 4. The creator of the channel "subscribes" to all the incoming messages
    automatically. There might be an intention to register per-service listeners.
+5. Optional and required argument handling on connect/3 and send/4 is not clearly
+   communicated.
 
 .. _`tchannel spec`: http://tchannel.readthedocs.org/en/latest/protocol/

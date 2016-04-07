@@ -116,24 +116,30 @@ code_change(_Old, State, _Extra) ->
 %%==============================================================================
 init1(Address, Port, Options, Caller) ->
     process_flag(trap_exit, true),
+    HostPort = proplists:get_value(host_port, Options),
+    ProcessName = proplists:get_value(process_name, Options),
     Timeout = proplists:get_value(tcp_connect_timeout, Options),
     TcpOpts = proplists:get_value(tcp_options, Options),
     ConnectOpts = [binary, {active, false}, {nodelay, true}] ++ TcpOpts,
     case gen_tcp:connect(Address, Port, ConnectOpts, Timeout) of
         {ok, Socket} ->
             State = #state{socket=Socket, options=Options, caller=Caller},
-            init_req(State);
+            init_req(State, HostPort, ProcessName);
         {error, timeout} ->
             {stop, connect_timeout};
         {error, Reason} ->
             {stop, Reason}
     end.
 
--spec init_req(State) -> {ok, State} | {stop, Reason} when
+-spec init_req(State, HostPort, ServiceName) ->
+    {ok, State} | {stop, Reason} when
       State :: state(),
+      HostPort :: hostport(),
+      ServiceName :: service(),
       Reason:: error_reason().
-init_req(#state{socket=Socket}=State) ->
-    Packet = tchannel_packet:construct_init_req(),
+init_req(#state{socket=Socket}=State, HostPort, ProcessName) ->
+    io:format(user, "HostPort: ~p, ProcessName: ~p~n", [HostPort, ProcessName]),
+    Packet = tchannel_packet:construct_init_req(HostPort, ProcessName),
     case gen_tcp:send(Socket, Packet) of
         ok ->
             init_res(State);

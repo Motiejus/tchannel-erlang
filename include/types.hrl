@@ -15,6 +15,8 @@
     error.              % Protocol level error
 
 -type connect_option() ::
+    {host_port, hostport()}                   |
+    {process_name, service()}                 |
     {tcp_connect_timeout, timeout()}          |
     {init_timeout, timeout()}                 |
     {tcp_options, [gen_tcp:connect_option()]}.  % passed to gen_tcp:connect

@@ -15,19 +15,9 @@
 
 %% Public API
 -export([close/1]).
--export([connect/2]).
 -export([connect/3]).
 -export([headers/1]).
 -export([send/4]).
-
-%% @doc Connect to a tchannel endpoint with default options.
--spec connect(Address, Port) -> {ok, Channel} | {error, Reason} when
-      Address :: inet:ip_address() | inet:hostname(),
-      Port :: inet:port_number(),
-      Channel :: tchannel(),
-      Reason :: error_reason().
-connect(Address, Port) ->
-    connect(Address, Port, []).
 
 %% @doc Connect to a tchannel endpoint.
 %%
@@ -86,6 +76,10 @@ connect1(Address, Port, Options) ->
 
 check_options([]) ->
     ok;
+check_options([{process_name, B}|Options]) when is_binary(B) ->
+    check_options(Options);
+check_options([{host_port, B}|Options]) when is_binary(B) ->
+    check_options(Options);
 check_options([{tcp_connect_timeout, T}|Options]) when is_integer(T) ->
     check_options(Options);
 check_options([{init_timeout, T}|Options]) when is_integer(T) ->
@@ -100,6 +94,8 @@ check_options([Opt|_]) ->
 merge_options(Options) ->
     F = fun(K, Default) -> {K, proplists:get_value(K, Options, Default)} end,
     [
+     F(process_name, check_your_args),
+     F(host_port, check_your_args),
      F(tcp_connect_timeout, ?DEFAULT_TCP_CONNECT_TIMEOUT),
      F(init_timeout, ?DEFAULT_INIT_TIMEOUT),
      F(tcp_options, [])

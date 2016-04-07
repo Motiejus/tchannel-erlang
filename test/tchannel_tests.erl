@@ -2,6 +2,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-define(OPTS, [{host_port, <<"0.0.0.0:0">>}, {process_name, <<"woodootest">>}]).
 -define(conn(Opt), (tchannel:connect("127.0.0.1", 1, [Opt]))).
 
 api_test_() ->
@@ -38,30 +39,30 @@ tchannel_test_() ->
 
 %% @doc Connection timeout, mocking inet_tcp module.
 connect_timeout() ->
-    Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_timeout}]}],
+    Opts = ?OPTS ++ [{tcp_options, [{tcp_module, tchannel_inet_tcp_timeout}]}],
     Host = {192,0,2,1},
     ?assertEqual({error, connect_timeout}, tchannel:connect(Host, 1, Opts)).
 
 %% @doc Connect to 127.0.0.1:1. Get eaccess...
 connect_fail() ->
     % {error, eaccess} on osx, {error,enetunreach} on travis-ci/linux
-    ?assertMatch({error, _}, tchannel:connect({255,255,255,255}, 1)).
+    ?assertMatch({error, _}, tchannel:connect({255,255,255,255}, 1, ?OPTS)).
 
 %% @doc Unable to receive init res from the remote.
 init_req_tcp_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_close/1),
-    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port)).
+    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port, ?OPTS)).
 
 %% @doc Connection establishment succeeds, but sending init_req payload fails.
 first_send_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_close/1),
-    Opts = [{tcp_options, [{tcp_module, tchannel_inet_tcp_nosend}]}],
+    Opts = ?OPTS ++ [{tcp_options, [{tcp_module, tchannel_inet_tcp_nosend}]}],
     ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port, Opts)).
 
 %% @doc Connection establishment succeeds, receive first header, connection err.
 init_res_after_first_packet_fail() ->
     Port = start_server_get_port(fun gen_tcp_server_first_16b_only/1),
-    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port)).
+    ?assertEqual({error, closed}, tchannel:connect({127,0,0,1}, Port, ?OPTS)).
 
 %%==============================================================================
 %% Utilities

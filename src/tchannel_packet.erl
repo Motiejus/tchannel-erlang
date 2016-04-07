@@ -6,7 +6,7 @@
 -export([recv_packet_passive/2]).
 
 %% Pure
--export([construct_init_req/0,
+-export([construct_init_req/2,
          parse_init_res/1,
          parse_call_res/1,
          parse_full_packet/1,
@@ -51,12 +51,15 @@ recv_packet_passive(Socket, Timeout) ->
 %%=============================================================================
 
 %% @doc Construct packet for init_req
--spec construct_init_req() -> Packet when Packet :: iodata().
-construct_init_req() ->
+-spec construct_init_req(HostPort, ProcessName) -> Packet when
+      HostPort :: hostport(),
+      ProcessName :: service(),
+      Packet :: iodata().
+construct_init_req(HostPort, ProcessName) ->
     OTP = list_to_binary(erlang:system_info(otp_release)),
     Headers = [
-               {<<"host_port">>, <<"0.0.0.0:0">>},
-               {<<"process_name">>, <<"ringpoprop">>},
+               {<<"host_port">>, HostPort},
+               {<<"process_name">>, ProcessName},
                {<<"tchannel_language">>, <<"erlang">>},
                {<<"tchannel_language_version">>, OTP},
                {<<"tchannel_version">>, ?TCHANNEL_LIB_VERSION}
