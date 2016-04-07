@@ -138,7 +138,6 @@ init1(Address, Port, Options, Caller) ->
       ServiceName :: service(),
       Reason:: error_reason().
 init_req(#state{socket=Socket}=State, HostPort, ProcessName) ->
-    io:format(user, "HostPort: ~p, ProcessName: ~p~n", [HostPort, ProcessName]),
     Packet = tchannel_packet:construct_init_req(HostPort, ProcessName),
     case gen_tcp:send(Socket, Packet) of
         ok ->
