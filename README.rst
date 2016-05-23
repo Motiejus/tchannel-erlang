@@ -8,6 +8,25 @@ TChannel-erlang
 
 TChannel driver for Erlang.
 
+Currently implemented:
+* Absolute minimum required to initiate a tchannel connection, send a small
+  request, get back a response, and close the connection. No tracing, logging,
+  retries, connection pooling, etc.
+* Implemented by only following the `tchannel spec`_, so the API is probably
+  not similar to any other of official tchannel APIs.
+* Can only work as a client (not hard to extend to a server though).
+* Timeouts may not be trusted.
+
+Highlights:
+* 100% test line coverage.
+* I have a lot of Erlang experience, and none of building an RPC system. So you
+  will find pretty good Erlang here, and a childish RPC implementation.
+* A good place to look for real usage is ``test/integration_tests.erl``; this 
+  test spawns a tchannel-Python echo process, sends requests and gets responses.
+
+As of May 2016, project is abandoned and will stay that way, unless I find a
+good use for this project again.
+
 Build, compile and run tests
 ----------------------------
 
@@ -15,13 +34,6 @@ Build, compile and run tests
 
     $ make setup  ## requires `virtualenv` in `$PATH`.
     $ make
-
-TODO
-----
-
-Things to do before any kind of announcement of this experiment:
-
-* Documentation generator.
 
 TChannel
 ========
