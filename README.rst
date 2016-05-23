@@ -9,6 +9,7 @@ TChannel-erlang
 TChannel driver for Erlang.
 
 Currently implemented:
+
 * Absolute minimum required to initiate a tchannel connection, send a small
   request, get back a response, and close the connection. No tracing, logging,
   retries, connection pooling, etc.
@@ -18,6 +19,7 @@ Currently implemented:
 * Timeouts may not be trusted.
 
 Highlights:
+
 * 100% test line coverage.
 * I have a lot of Erlang experience, and none of building an RPC system. So you
   will find pretty good Erlang here, and a childish RPC implementation.
